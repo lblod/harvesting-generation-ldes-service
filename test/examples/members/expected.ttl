@@ -1,0 +1,8 @@
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ex.org/zitting/1> a besluit:Zitting ;
+  besluit:isGehoudenDoor <http://ex.org/orgaan/1> .
+<http://ex.org/agendapunt/1> dct:title "Budget"@nl .
+<http://ex.org/stemming/1> besluit:aantalVoorstanders "5"^^xsd:integer .

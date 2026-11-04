@@ -1,0 +1,10 @@
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
+@prefix eli: <http://data.europa.eu/eli/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ex.org/besluit/1> a besluit:Besluit ; eli:has_part <http://ex.org/artikel/1> ;
+  eli:passed_by <http://ex.org/orgaan-in-tijd/1> ;
+  eli:date_publication "2025-03-01"^^xsd:date ;
+  eli:language <http://publications.europa.eu/resource/authority/language/NLD> .
+<http://ex.org/artikel/1> a besluit:Artikel ; prov:value "Artikel 1" ; eli:language <http://publications.europa.eu/resource/authority/language/NLD> .

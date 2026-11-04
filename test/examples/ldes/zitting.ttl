@@ -1,0 +1,14 @@
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+
+<http://ex.org/zitting/1> a besluit:Zitting ;
+  besluit:isGehoudenDoor <http://ex.org/orgaan-in-tijd/1> ;
+  besluit:behandelt <http://ex.org/agendapunt/1> .
+<http://ex.org/agendapunt/1> a besluit:Agendapunt ;
+  dct:title "Budget"@nl .
+<http://ex.org/behandeling/1> a besluit:BehandelingVanAgendapunt ;
+  dct:subject <http://ex.org/agendapunt/1> ;
+  besluit:heeftStemming <http://ex.org/stemming/1> .
+<http://ex.org/stemming/1> a besluit:Stemming ;
+  besluit:onderwerp "Budget" ;
+  besluit:gevolg "aangenomen" .

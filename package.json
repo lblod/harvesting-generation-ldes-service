@@ -1,0 +1,24 @@
+{
+  "name": "ldes-generation-service",
+  "version": "0.1.0",
+  "description": "Microservice that generates LDES feeds (zittingen, besluiten) per administrative unit from harvested data",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lblod/harvesting-generation-ldes-service.git"
+  },
+  "author": "redpencil.io",
+  "license": "MIT",
+  "dependencies": {
+    "@lblod/ldes-producer": "0.9.0-add-shape.102",
+    "@lblod/mu-auth-sudo": "^0.6.1",
+    "lodash.flatten": "^4.4.0",
+    "n3": "^1.17.0"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@nbittich/tortank-wasm": "^0.32.3",
+    "vitest": "^5.0.3"
+  }
+}
