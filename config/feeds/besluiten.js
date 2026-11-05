@@ -5,8 +5,8 @@
 // behandelingen and stemmingen live in the zittingen feed. Consumers that want a
 // decision with its votes join both feeds on the behandeling IRI.
 //
-// This file can be replaced at runtime (mount a folder on FEEDS_DIR): it is read
-// again at the start of every task. `subject` and `graph` are passed as
+// Can be overridden by mounting /config/feeds (mu-javascript-template /config
+// convention, picked up on restart). `subject` and `graph` are passed as
 // escaped SPARQL IRIs (<...>).
 
 const PREFIXES = `
@@ -119,21 +119,19 @@ const QUERIES = [
   language,
 ];
 
-module.exports = {
-  shape: "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape",
+export const shape = "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape";
 
-  // Only the subjects that are a besluit are a member of this feed.
-  async isMember(subject, { ask, graph }) {
-    return ask(`${PREFIXES}
+// Only the subjects that are a besluit are a member of this feed.
+export async function isMember(subject, { ask, graph }) {
+  return ask(`${PREFIXES}
 ASK { GRAPH ${graph} { ${subject} a besluit:Besluit } }`);
-  },
+}
 
-  // The member: the besluit, its artikels and the derived data, as an array of quads.
-  async buildMember(subject, { construct, graph }) {
-    const quads = [];
-    for (const query of QUERIES) {
-      quads.push(...(await construct(query(subject, graph))));
-    }
-    return quads;
-  },
-};
+// The member: the besluit, its artikels and the derived data, as an array of quads.
+export async function buildMember(subject, { construct, graph }) {
+  const quads = [];
+  for (const query of QUERIES) {
+    quads.push(...(await construct(query(subject, graph))));
+  }
+  return quads;
+}

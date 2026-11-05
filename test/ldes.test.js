@@ -45,7 +45,7 @@ const normalize = (page, stream) => {
 async function addZitting(unit, feedName, ttlFile) {
   const { addMembers } = await import("../lib/ldes");
   const { loadFeeds } = await import("../lib/feeds");
-  const feed = loadFeeds().find(({ name }) => name === feedName);
+  const feed = (await loadFeeds()).find(({ name }) => name === feedName);
   const store = turtleToStore(await readFile(ttlFile, "utf-8"));
   await addMembers(unit, feed, new Map([["http://ex.org/zitting/1", store]]));
 }

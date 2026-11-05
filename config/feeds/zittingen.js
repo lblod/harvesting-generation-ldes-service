@@ -5,8 +5,8 @@
 // not every behandeling results in a besluit, and votes and aanwezigen are
 // completed by the notulen, at the same moment the zitting changes.
 //
-// This file can be replaced at runtime (mount a folder on FEEDS_DIR): it is read
-// again at the start of every task. `subject` and `graph` are passed as
+// Can be overridden by mounting /config/feeds (mu-javascript-template /config
+// convention, picked up on restart). `subject` and `graph` are passed as
 // escaped SPARQL IRIs (<...>).
 
 const PREFIXES = `
@@ -121,21 +121,19 @@ const QUERIES = [
     ),
 ];
 
-module.exports = {
-  shape: "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape",
+export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
 
-  // Only the subjects that are a zitting are a member of this feed.
-  async isMember(subject, { ask, graph }) {
-    return ask(`${PREFIXES}
+// Only the subjects that are a zitting are a member of this feed.
+export async function isMember(subject, { ask, graph }) {
+  return ask(`${PREFIXES}
 ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
-  },
+}
 
-  // The member: the zitting and its nested resources, as an array of quads.
-  async buildMember(subject, { construct, graph }) {
-    const quads = [];
-    for (const query of QUERIES) {
-      quads.push(...(await construct(query(subject, graph))));
-    }
-    return quads;
-  },
-};
+// The member: the zitting and its nested resources, as an array of quads.
+export async function buildMember(subject, { construct, graph }) {
+  const quads = [];
+  for (const query of QUERIES) {
+    quads.push(...(await construct(query(subject, graph))));
+  }
+  return quads;
+}

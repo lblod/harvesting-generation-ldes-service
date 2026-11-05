@@ -18,11 +18,11 @@ function fakeContext() {
   return { ctx, queries };
 }
 
-const feed = (name) => loadFeeds().find((f) => f.name === name);
+const feed = async (name) => (await loadFeeds()).find((f) => f.name === name);
 
 describe("loadFeeds", () => {
-  it("has a feed per file in FEEDS_DIR, named after the file, with its shape", () => {
-    expect(loadFeeds().map(({ name, shape }) => [name, shape])).toEqual([
+  it("has a feed per file in config/feeds, named after the file, with its shape", async () => {
+    expect((await loadFeeds()).map(({ name, shape }) => [name, shape])).toEqual([
       ["besluiten", "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape"],
       ["zittingen", "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"],
     ]);
@@ -33,14 +33,14 @@ describe("zittingen", () => {
   it("only has zittingen as members", async () => {
     const { ctx, queries } = fakeContext();
 
-    expect(await feed("zittingen").isMember(SUBJECT, ctx)).toBe(true);
+    expect(await (await feed("zittingen")).isMember(SUBJECT, ctx)).toBe(true);
     expect(queries[0]).toContain(`ASK { GRAPH ${GRAPH} { ${SUBJECT} a besluit:Zitting } }`);
   });
 
   it("builds the member from the zitting, agendapunten, behandelingen, stemmingen and documents", async () => {
     const { ctx, queries } = fakeContext();
 
-    const quads = await feed("zittingen").buildMember(SUBJECT, ctx);
+    const quads = await (await feed("zittingen")).buildMember(SUBJECT, ctx);
 
     expect(quads).toEqual(queries.map((_, i) => `quad ${i + 1}`));
     expect(queries).toHaveLength(5);
@@ -60,14 +60,14 @@ describe("besluiten", () => {
   it("only has besluiten as members", async () => {
     const { ctx, queries } = fakeContext();
 
-    await feed("besluiten").isMember(SUBJECT, ctx);
+    await (await feed("besluiten")).isMember(SUBJECT, ctx);
     expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit`);
   });
 
   it("builds the member from the besluit and its artikels, with the derived data", async () => {
     const { ctx, queries } = fakeContext();
 
-    await feed("besluiten").buildMember(SUBJECT, ctx);
+    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
 
     expect(queries).toHaveLength(5);
     // the behandeling is only linked, it lives in the zittingen feed
@@ -84,7 +84,7 @@ describe("besluiten", () => {
   it("does not read the derived properties as is", async () => {
     const { ctx, queries } = fakeContext();
 
-    await feed("besluiten").buildMember(SUBJECT, ctx);
+    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
 
     const [values] = queries[0].match(/VALUES \?p \{[^}]*\}/);
     expect(values).not.toMatch(/eli:passed_by|eli:date_publication|eli:language/);

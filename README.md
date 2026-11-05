@@ -24,20 +24,18 @@ the shapes consumers use for member extraction).
 
 ### Feeds
 
-A feed is a `.js` file (CommonJS) in `FEEDS_DIR`, named after the stream (`feeds/zittingen.js`,
-`feeds/besluiten.js`). It exports:
+A feed is a `.js` file in `config/feeds`, named after the stream (`config/feeds/zittingen.js`,
+`config/feeds/besluiten.js`). It exports:
 
 ```js
-module.exports = {
-  shape: "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape", // tree:shape of the stream
-  async isMember(subject, { ask, graph }) { ... },      // -> boolean
-  async buildMember(subject, { construct, graph }) { ... }, // -> array of quads
-};
+export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the stream
+export async function isMember(subject, { ask, graph }) { ... }        // -> boolean
+export async function buildMember(subject, { construct, graph }) { ... } // -> array of quads
 ```
 
 `subject` and `graph` are escaped SPARQL IRIs (`<...>`). `ask(query)` returns a boolean, `construct(query)` the
-quads. The files are read again at the start of every task, so they can be changed at runtime by mounting a folder
-on `FEEDS_DIR` (copy the files of this repository in it first). Adding a file adds a stream.
+quads. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
+name) or add one (new file = new stream); the service is transpiled again with it when the container starts.
 
 ### Cutoff between the feeds
 
@@ -46,7 +44,7 @@ Behandelingen and stemmingen live in the zittingen feed. A besluit only links to
 
 ### Derived data (besluiten)
 
-Derived in the queries of `feeds/besluiten.js`:
+Derived in the queries of `config/feeds/besluiten.js`:
 
 - `eli:passed_by`: when missing, the `besluit:isGehoudenDoor` of the zitting (the bestuursorgaan in tijd). When it is
   the bestuursorgaan the zitting's organ is a `mandaat:isTijdspecialisatieVan`, it is replaced by the organ in tijd.
@@ -71,8 +69,8 @@ Derived in the queries of `feeds/besluiten.js`:
     volumes:
       - ./data/files:/share
       - ./data/ldes:/data
-      # optional, to change the feeds without a new image
-      - ./config/ldes-feeds:/app/feeds
+      # optional, to override or add feeds without a new image
+      - ./config/ldes-feeds:/config/feeds
 ```
 
 Add the usual delta-notifier rule (scheduled tasks, `http://harvest_gen_ldes/delta`), the task to the job-controller
@@ -83,7 +81,7 @@ config (`http://lblod.data.gift/id/jobs/concept/TaskOperation/gen-ldes`) and a d
 `npm test` (jest, with [tortank](https://github.com/nbittich/tortank) to compare turtle, as in
 [test-suites](https://github.com/nbittich/test-suites)). They need no triplestore: the SPARQL answers are mocked.
 
-- `feeds.test.js`: the feeds found in `FEEDS_DIR`, and the queries they send.
+- `feeds.test.js`: the feeds found in `config/feeds`, and the queries they send.
 - `pipeline.test.js`: subjects are filtered by the feed, members are built and added.
 - `ldes.test.js`: the page written by ldes-producer, with the shape and the nested resources (`test/examples/ldes`).
 
@@ -100,6 +98,5 @@ must end with a `/`; `LDES_STREAM_PREFIX` defaults to `BASE_URL`; `PAGE_RESOURCE
 `HIGH_LOAD_DATABASE_ENDPOINT: "http://database:8890/sparql"`
 `DEFAULT_GRAPH: "http://mu.semte.ch/graphs/harvesting"`: graph with the job and the files of the tasks.
 `SOURCE_GRAPH: "http://mu.semte.ch/graphs/public"`: graph with the published data.
-`FEEDS_DIR: "/app/feeds"`: folder with the feed files.
 `BUFFER_SIZE: "1000"`: number of lines of the diff files handled at once.
 `BATCH_SIZE: "10"`: number of members read and written at once. Keep it low enough for a query to stay below the row limit of the triplestore (10000 for Virtuoso).
