@@ -48,11 +48,11 @@ describe("zittingen", () => {
     expect(queries[0]).toContain(`VALUES ?s { ${SUBJECT} }`);
     expect(queries[0]).toContain("besluit:isGehoudenDoor");
     expect(queries[1]).toContain(`${SUBJECT} besluit:behandelt ?s .`);
-    expect(queries[2]).toContain(`${SUBJECT} besluit:behandelt/^dct:subject ?s .`);
-    expect(queries[3]).toContain(`${SUBJECT} besluit:behandelt/^dct:subject/besluit:heeftStemming ?s .`);
+    expect(queries[2]).toContain(`${SUBJECT} besluit:behandelt ?agendapunt . ?s dct:subject ?agendapunt .`);
+    expect(queries[3]).toContain("?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .");
     expect(queries[3]).toContain("besluit:aantalVoorstanders");
     expect(queries[4]).toContain("besluit:heeftNotulen|besluit:heeftBesluitenlijst");
-    expect(queries[4]).toContain("besluit:heeftUittreksel");
+    expect(queries[4]).toContain("?behandeling besluit:heeftUittreksel ?s");
   });
 });
 

@@ -20,13 +20,15 @@ PREFIX dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>
 PREFIX adms: <http://www.w3.org/ns/adms#>
 `;
 
-// The properties of a node of the shape (the shapes are closed), found from the
-// zitting along `path`.
-function properties(subject, graph, path, predicates) {
+// The properties of a node of the shape (the shapes are closed), for the nodes
+// ?s found from the zitting by `pattern` (explicit triple patterns rather than
+// property paths: Virtuoso returned nothing for an inverse path combined with
+// VALUES ?p).
+function properties(graph, pattern, predicates) {
   return `${PREFIXES}
 CONSTRUCT { ?s ?p ?o } WHERE {
   GRAPH ${graph} {
-    ${path ? `${subject} ${path} ?s .` : `VALUES ?s { ${subject} }`}
+    ${pattern}
     VALUES ?p { ${predicates.join(" ")} }
     ?s ?p ?o .
   }
@@ -106,18 +108,18 @@ const DOCUMENT = [
   "mu:uuid",
 ];
 
-const BEHANDELINGEN = "besluit:behandelt/^dct:subject";
+const behandelingen = (s) => `${s} besluit:behandelt ?agendapunt . ?behandeling dct:subject ?agendapunt .`;
 
 const QUERIES = [
-  (s, g) => properties(s, g, null, ZITTING),
-  (s, g) => properties(s, g, "besluit:behandelt", AGENDAPUNT),
-  (s, g) => properties(s, g, BEHANDELINGEN, BEHANDELING),
-  (s, g) => properties(s, g, `${BEHANDELINGEN}/besluit:heeftStemming`, STEMMING),
+  (s, g) => properties(g, `VALUES ?s { ${s} }`, ZITTING),
+  (s, g) => properties(g, `${s} besluit:behandelt ?s .`, AGENDAPUNT),
+  (s, g) => properties(g, `${s} besluit:behandelt ?agendapunt . ?s dct:subject ?agendapunt .`, BEHANDELING),
+  (s, g) => properties(g, `${behandelingen(s)} ?behandeling besluit:heeftStemming ?s .`, STEMMING),
   (s, g) =>
     properties(
-      s,
       g,
-      `besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag|(${BEHANDELINGEN}/besluit:heeftUittreksel)`,
+      `{ ${s} besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag ?s }
+    UNION { ${behandelingen(s)} ?behandeling besluit:heeftUittreksel ?s }`,
       DOCUMENT,
     ),
 ];
