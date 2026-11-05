@@ -1,14 +1,12 @@
 import { app, errorHandler } from 'mu';
 
 import bodyParser from 'body-parser';
-import { join } from 'path';
 import { ACCEPTED_CONTENT_TYPES, getNode } from '@lblod/ldes-producer';
 import { run } from './lib/pipeline-generating-ldes';
 import { Delta } from './lib/delta';
-import { FEEDS } from './lib/feeds';
 import { config } from './lib/ldes';
 import { failBusyTasks } from './lib/task';
-import { STATUS_SCHEDULED, SHAPES_DIR } from './constants';
+import { STATUS_SCHEDULED } from './constants';
 
 failBusyTasks();
 
@@ -41,17 +39,10 @@ app.post('/delta', async function(req, res, next) {
   }
 });
 
-// The shapes advertised with tree:shape.
-app.get('/shapes/:feed', function(req, res) {
-  const feed = FEEDS.find((f) => f.name === req.params.feed);
-  if (!feed) return res.status(404).send();
-  return res.type('text/turtle').sendFile(join(SHAPES_DIR, feed.file));
-});
-
 // The LDES pages: /:unit/:feed/:nodeId, with the unit being the uuid of the administrative unit.
 app.get('/:unit/:feed/:nodeId?', async function(req, res, next) {
   const { unit, feed, nodeId } = req.params;
-  if (!/^[\w-]+$/.test(unit) || !FEEDS.some((f) => f.name === feed) || (nodeId && !/^\d+$/.test(nodeId))) {
+  if (!/^[\w-]+$/.test(unit) || !/^[\w-]+$/.test(feed) || (nodeId && !/^\d+$/.test(nodeId))) {
     return res.status(404).send();
   }
   if (!nodeId) {

@@ -1,6 +1,6 @@
 import { join } from "path";
 
-process.env.SHAPES_DIR = join(__dirname, "../shapes");
+process.env.FEEDS_DIR = join(__dirname, "../feeds");
 process.env.BASE_URL = "http://example.org/ldes/";
 
 // no mu-javascript-template and no triplestore in the tests

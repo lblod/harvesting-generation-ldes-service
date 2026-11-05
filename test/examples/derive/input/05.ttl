@@ -1,7 +1,0 @@
-@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
-@prefix eli: <http://data.europa.eu/eli/ontology#> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-<http://ex.org/besluit/1> a besluit:Besluit ; eli:has_part <http://ex.org/artikel/1> .
-<http://ex.org/artikel/1> a besluit:Artikel .

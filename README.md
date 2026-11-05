@@ -12,17 +12,32 @@ For each administrative unit (the `dct:subject` of the job) it maintains two str
 | `<BASE_URL><unit>/besluiten` | `besluit:Besluit` | artikels |
 
 `<unit>` is the last segment of the URI of the administrative unit. Both streams advertise their SHACL shape with
-`tree:shape` (`shapes/meeting-ldes.ttl`, `shapes/decision-ldes.ttl`). The shapes are the source of truth: the service
-reads them to know which nested resources belong to a member and which properties to keep (the shapes are closed, so
-everything else is dropped).
+`tree:shape` (`shapes/meeting-ldes.ttl`, `shapes/decision-ldes.ttl`; the service does not read these files, they are
+the shapes consumers use for member extraction).
 
 ## How it works
 
 1. The task's input is the diff of the job (`new-insert-triples.ttl` and `to-remove-triples.ttl`).
-2. The subjects in these files are mapped to the zittingen and besluiten they are part of.
-3. Per member the data is read from the publication graph, along the shape, and added as a new version to the stream.
+2. Every subject of these files is passed to every feed. A feed keeps the subjects of its type (an `ASK` query).
+3. For each of these members the feed builds the member (`CONSTRUCT` queries, one per node of the shape) and it is
+   added as a new version to the stream.
 
-Only members touched by the job get a new version.
+### Feeds
+
+A feed is a `.js` file (CommonJS) in `FEEDS_DIR`, named after the stream (`feeds/zittingen.js`,
+`feeds/besluiten.js`). It exports:
+
+```js
+module.exports = {
+  shape: "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape", // tree:shape of the stream
+  async isMember(subject, { ask, graph }) { ... },      // -> boolean
+  async buildMember(subject, { construct, graph }) { ... }, // -> array of quads
+};
+```
+
+`subject` and `graph` are escaped SPARQL IRIs (`<...>`). `ask(query)` returns a boolean, `construct(query)` the
+quads. The files are read again at the start of every task, so they can be changed at runtime by mounting a folder
+on `FEEDS_DIR` (copy the files of this repository in it first). Adding a file adds a stream.
 
 ### Cutoff between the feeds
 
@@ -30,6 +45,8 @@ Behandelingen and stemmingen live in the zittingen feed. A besluit only links to
 `prov:wasGeneratedBy`; consumers that want a decision with its votes join the two feeds on the behandeling IRI.
 
 ### Derived data (besluiten)
+
+Derived in the queries of `feeds/besluiten.js`:
 
 - `eli:passed_by`: when missing, the `besluit:isGehoudenDoor` of the zitting (the bestuursorgaan in tijd). When it is
   the bestuursorgaan the zitting's organ is a `mandaat:isTijdspecialisatieVan`, it is replaced by the organ in tijd.
@@ -54,6 +71,8 @@ Behandelingen and stemmingen live in the zittingen feed. A besluit only links to
     volumes:
       - ./data/files:/share
       - ./data/ldes:/data
+      # optional, to change the feeds without a new image
+      - ./config/ldes-feeds:/app/feeds
 ```
 
 Add the usual delta-notifier rule (scheduled tasks, `http://harvest_gen_ldes/delta`), the task to the job-controller
@@ -64,16 +83,14 @@ config (`http://lblod.data.gift/id/jobs/concept/TaskOperation/gen-ldes`) and a d
 `npm test` (jest, with [tortank](https://github.com/nbittich/tortank) to compare turtle, as in
 [test-suites](https://github.com/nbittich/test-suites)). They need no triplestore: the SPARQL answers are mocked.
 
-- `shapes.test.js`: which nested shapes, paths and properties are read from the shapes.
-- `members.test.js`: the queries to find the members and to read their data.
-- `derive.test.js`: the derived data of the besluiten (`test/examples/derive`).
+- `feeds.test.js`: the feeds found in `FEEDS_DIR`, and the queries they send.
+- `pipeline.test.js`: subjects are filtered by the feed, members are built and added.
 - `ldes.test.js`: the page written by ldes-producer, with the shape and the nested resources (`test/examples/ldes`).
 
 ## Endpoints
 
 - `POST /delta`: delta-notifier entry point.
 - `GET /:unit/:feed/:nodeId`: pages of the stream (`feed` is `zittingen` or `besluiten`), `/:unit/:feed` redirects to page 1.
-- `GET /shapes/:feed`: the shape file of the feed.
 
 ## Environment variables
 
@@ -83,6 +100,6 @@ must end with a `/`; `LDES_STREAM_PREFIX` defaults to `BASE_URL`; `PAGE_RESOURCE
 `HIGH_LOAD_DATABASE_ENDPOINT: "http://database:8890/sparql"`
 `DEFAULT_GRAPH: "http://mu.semte.ch/graphs/harvesting"`: graph with the job and the files of the tasks.
 `SOURCE_GRAPH: "http://mu.semte.ch/graphs/public"`: graph with the published data.
-`SHAPES_DIR: "/app/shapes"`
+`FEEDS_DIR: "/app/feeds"`: folder with the feed files.
 `BUFFER_SIZE: "1000"`: number of lines of the diff files handled at once.
 `BATCH_SIZE: "10"`: number of members read and written at once. Keep it low enough for a query to stay below the row limit of the triplestore (10000 for Virtuoso).
