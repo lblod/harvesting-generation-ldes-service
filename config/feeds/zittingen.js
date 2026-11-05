@@ -57,7 +57,8 @@ const AGENDAPUNT = [
   "dct:title",
   "dct:description",
   "besluit:geplandOpenbaar",
-  "besluit:Agendapunt.type",
+  // full IRI: Virtuoso does not accept a dot in a prefixed name
+  "<http://data.vlaanderen.be/ns/besluit#Agendapunt.type>",
   "besluit:aangebrachtNa",
   "besluit:heeftOntwerpbesluit",
   "dct:references",

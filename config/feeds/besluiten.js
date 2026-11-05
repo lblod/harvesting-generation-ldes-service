@@ -38,7 +38,7 @@ CONSTRUCT { ?s ?p ?o } WHERE {
 }`;
 }
 
-// eli:passed_by, eli:date_publication and eli:language are derived below
+// eli:passed_by and eli:date_publication are derived below
 const BESLUIT = [
   "rdf:type",
   "eli:title",
@@ -61,11 +61,12 @@ const BESLUIT = [
   "dct:subject",
   "prov:atLocation",
   "eli:has_part",
+  "eli:language",
   "mu:uuid",
   "prov:wasDerivedFrom",
 ];
 
-const ARTIKEL = ["rdf:type", "prov:value", "eli:number", "prov:wasDerivedFrom", "mu:uuid"];
+const ARTIKEL = ["rdf:type", "prov:value", "eli:number", "eli:language", "prov:wasDerivedFrom", "mu:uuid"];
 
 // eli:passed_by: the bestuursorgaan in tijd that held the zitting, when missing or
 // when it is the (general) bestuursorgaan of that organ in tijd.
@@ -99,14 +100,24 @@ CONSTRUCT { ${subject} eli:date_publication ?date } WHERE {
 }`;
 }
 
-// eli:language: NLD when missing, on the besluit and its artikels.
+// eli:language: NLD when missing, on the besluit and on its artikels (an existing
+// language is read with the other properties).
 function language(subject, graph) {
   return `${PREFIXES}
-CONSTRUCT { ?s eli:language ?language } WHERE {
+CONSTRUCT { ${subject} eli:language ${NLD} } WHERE {
   GRAPH ${graph} {
-    { VALUES ?s { ${subject} } } UNION { ${subject} eli:has_part ?s }
-    OPTIONAL { ?s eli:language ?given }
-    BIND(COALESCE(?given, ${NLD}) AS ?language)
+    ${subject} a besluit:Besluit .
+    FILTER NOT EXISTS { ${subject} eli:language ?language }
+  }
+}`;
+}
+
+function artikelLanguage(subject, graph) {
+  return `${PREFIXES}
+CONSTRUCT { ?artikel eli:language ${NLD} } WHERE {
+  GRAPH ${graph} {
+    ${subject} eli:has_part ?artikel .
+    FILTER NOT EXISTS { ?artikel eli:language ?language }
   }
 }`;
 }
@@ -117,6 +128,7 @@ const QUERIES = [
   passedBy,
   datePublication,
   language,
+  artikelLanguage,
 ];
 
 export const shape = "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape";

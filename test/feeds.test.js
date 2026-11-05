@@ -69,7 +69,7 @@ describe("besluiten", () => {
 
     await (await feed("besluiten")).buildMember(SUBJECT, ctx);
 
-    expect(queries).toHaveLength(5);
+    expect(queries).toHaveLength(6);
     // the behandeling is only linked, it lives in the zittingen feed
     expect(queries[0]).toContain("prov:wasGeneratedBy");
     expect(queries[0]).not.toContain("besluit:heeftStemming");
@@ -78,16 +78,17 @@ describe("besluiten", () => {
     expect(queries[2]).toContain("mandaat:isTijdspecialisatieVan");
     expect(queries[3]).toContain(`CONSTRUCT { ${SUBJECT} eli:date_publication ?date }`);
     expect(queries[3]).toContain("MIN(");
-    expect(queries[4]).toContain("language/NLD");
+    expect(queries[4]).toContain(`CONSTRUCT { ${SUBJECT} eli:language <http://publications.europa.eu/resource/authority/language/NLD> }`);
+    expect(queries[5]).toContain(`${SUBJECT} eli:has_part ?artikel .`);
   });
 
-  it("does not read the derived properties as is", async () => {
+  it("does not read the derived passed_by and date_publication as is", async () => {
     const { ctx, queries } = fakeContext();
 
     await (await feed("besluiten")).buildMember(SUBJECT, ctx);
 
     const [values] = queries[0].match(/VALUES \?p \{[^}]*\}/);
-    expect(values).not.toMatch(/eli:passed_by|eli:date_publication|eli:language/);
+    expect(values).not.toMatch(/eli:passed_by|eli:date_publication/);
   });
 });
 
