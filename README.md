@@ -61,7 +61,7 @@ config (`http://lblod.data.gift/id/jobs/concept/TaskOperation/gen-ldes`) and a d
 
 ## Tests
 
-`npm test` (vitest, with [tortank](https://github.com/nbittich/tortank) to compare turtle, as in
+`npm test` (jest, with [tortank](https://github.com/nbittich/tortank) to compare turtle, as in
 [test-suites](https://github.com/nbittich/test-suites)). They need no triplestore: the SPARQL answers are mocked.
 
 - `shapes.test.js`: which nested shapes, paths and properties are read from the shapes.

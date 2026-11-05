@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { readFile } from "fs/promises";
 import { querySudo } from "@lblod/mu-auth-sudo";
 import { FEEDS } from "../lib/feeds";

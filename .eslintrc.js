@@ -11,6 +11,12 @@ module.exports = {
     node: true,
     es6: true
   },
+  overrides: [
+    {
+      files: ['test/**/*.js'],
+      env: { jest: true }
+    }
+  ],
   rules: {
     semi: 'warn'
   },

@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -6,18 +5,30 @@ import { expectSameTurtle, turtleToStore } from "./helpers";
 
 let dataFolder;
 
-beforeEach(async () => {
+// the config of the library is read from the env on import, so set it before the first import
+beforeAll(async () => {
   dataFolder = await mkdtemp(join(tmpdir(), "ldes-"));
-  vi.stubEnv("DATA_FOLDER", dataFolder);
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
-  vi.resetModules(); // the config of the library is read from the env on import
+  process.env.DATA_FOLDER = dataFolder;
 });
 
-afterEach(async () => {
-  vi.useRealTimers();
-  vi.unstubAllEnvs();
+afterAll(async () => {
+  delete process.env.DATA_FOLDER;
   await rm(dataFolder, { recursive: true, force: true });
+});
+
+beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date("2026-01-01T00:00:00.000Z"),
+    // only fake Date
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "setImmediate", "clearImmediate",
+      "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  });
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // The version uris are random and the view is relative to the page.

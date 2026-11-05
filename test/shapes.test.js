@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { loadShape, pathStep } from "../lib/shapes";
 
 const B = "http://data.vlaanderen.be/ns/besluit#";

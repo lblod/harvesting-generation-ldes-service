@@ -1,6 +1,5 @@
 import { TurtleDoc } from "@nbittich/tortank-wasm";
 import { Parser, Store, Writer } from "n3";
-import { expect } from "vitest";
 
 const WELL_KNOWN_PREFIX = "http://data.lblod.info/.well-known/genid#";
 
@@ -26,12 +25,10 @@ export function expectSameTurtle(actualTtl, expectedTtl) {
   const expected = parse(expectedTtl);
   const unexpected = actual.difference(expected);
   const missing = expected.difference(actual);
-  expect(
-    unexpected.isEmpty(),
-    `Actual contains triples not present in expected:\n${unexpected.toString()}`,
-  ).toBe(true);
-  expect(
-    missing.isEmpty(),
-    `Expected triples are missing from actual:\n${missing.toString()}`,
-  ).toBe(true);
+  if (!unexpected.isEmpty()) {
+    throw new Error(`Actual contains triples not present in expected:\n${unexpected.toString()}`);
+  }
+  if (!missing.isEmpty()) {
+    throw new Error(`Expected triples are missing from actual:\n${missing.toString()}`);
+  }
 }
