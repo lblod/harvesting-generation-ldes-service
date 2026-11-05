@@ -9,7 +9,7 @@
   "author": "redpencil.io",
   "license": "MIT",
   "dependencies": {
-    "@lblod/ldes-producer": "0.9.0-add-shape.102",
+    "@lblod/ldes-producer": "0.9.0-add-shape.103",
     "@lblod/mu-auth-sudo": "^0.6.1",
     "lodash.flatten": "^4.4.0",
     "n3": "^1.17.0"
