@@ -69,7 +69,9 @@ const BESLUIT = [
 const ARTIKEL = ["rdf:type", "prov:value", "eli:number", "eli:language", "prov:wasDerivedFrom", "mu:uuid"];
 
 // eli:passed_by: the bestuursorgaan in tijd that held the zitting, when missing or
-// when it is the (general) bestuursorgaan of that organ in tijd.
+// when it is the (general) bestuursorgaan of that organ in tijd. Only organs that
+// are a time specialisation of another organ are used: a zitting can also point
+// to the general organ (which is sometimes linked to itself).
 function passedBy(subject, graph) {
   return `${PREFIXES}
 CONSTRUCT { ${subject} eli:passed_by ?passedBy } WHERE {
@@ -77,9 +79,10 @@ CONSTRUCT { ${subject} eli:passed_by ?passedBy } WHERE {
     OPTIONAL { ${subject} eli:passed_by ?given }
     OPTIONAL {
       ${subject} ${ZITTING}/besluit:isGehoudenDoor ?organ .
-      OPTIONAL { ?organ mandaat:isTijdspecialisatieVan ?general }
+      ?organ mandaat:isTijdspecialisatieVan ?general .
+      FILTER(!sameTerm(?organ, ?general))
     }
-    BIND(IF(BOUND(?organ) && (!BOUND(?given) || (BOUND(?general) && sameTerm(?given, ?general))), ?organ, ?given) AS ?passedBy)
+    BIND(IF(BOUND(?organ) && (!BOUND(?given) || sameTerm(?given, ?general)), ?organ, ?given) AS ?passedBy)
   }
 }`;
 }
