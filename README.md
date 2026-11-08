@@ -43,8 +43,7 @@ Environment variables, besides the [ldes-producer ones](https://github.com/lblod
 - `HIGH_LOAD_DATABASE_ENDPOINT` (`http://database:8890/sparql`)
 - `DEFAULT_GRAPH` (`http://mu.semte.ch/graphs/harvesting`): the jobs and their files
 - `SOURCE_GRAPH` (`http://mu.semte.ch/graphs/public`): the published data
-- `BUFFER_SIZE` (`1000`): lines of the diff files read at once
-- `BATCH_SIZE` (`10`): members built at once
+- `BATCH_SIZE` (`10`)
 
 Pages are served on `GET /:unit/:feed/:page`.
 

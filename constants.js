@@ -43,5 +43,4 @@ export const SOURCE_GRAPH =
 // the service runs from the transpiled sources, config/ included
 export const FEEDS_DIR = `${process.cwd()}/config/feeds`;
 
-export const BUFFER_SIZE = parseInt(process.env.BUFFER_SIZE || '1000');
 export const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '10');

@@ -3,7 +3,7 @@ import { DataFactory } from 'n3';
 import { mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { loadFeeds, toFeed, context, createContext } from '../lib/feeds';
+import { loadFeeds, toFeed, context } from '../lib/feeds';
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -16,14 +16,14 @@ const PROV = 'http://www.w3.org/ns/prov#';
 // records the queries and answers the CONSTRUCTs with the given quads, in order
 function fakeContext(...answers) {
   const queries = [];
-  const ctx = createContext({
+  const ctx = {
     graph: GRAPH,
     ask: jest.fn(async (q) => queries.push(q) && true),
     construct: jest.fn(async (q) => {
       queries.push(q);
       return answers.shift() || [];
     }),
-  });
+  };
   return { ctx, queries };
 }
 
@@ -124,14 +124,11 @@ describe('toFeed', () => {
   });
 
   it('builds the member from the nodes by default', async () => {
-    const loaded = toFeed('x', valid());
-    const build = jest.fn(async () => []);
+    const quads = on(ex('x/1'), 'http://ex.org/p');
+    const { ctx, queries } = fakeContext(quads);
 
-    await loaded.buildMember(SUBJECT, { build });
-    expect(build).toHaveBeenCalledWith(SUBJECT, {
-      prefixes: 'PREFIX ex: <http://ex.org/>',
-      nodes: loaded.nodes,
-    });
+    expect(await toFeed('x', valid()).buildMember(SUBJECT, ctx)).toEqual(quads);
+    expect(queries[0]).toContain('VALUES ?p { ex:p }');
   });
 
   it('uses the buildMember of the feed file when it has one', async () => {
