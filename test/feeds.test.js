@@ -3,7 +3,7 @@ import { DataFactory } from 'n3';
 import { mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { loadFeeds, toFeed, context } from '../lib/feeds';
+import { loadFeeds, toFeed, context, findByValue } from '../lib/feeds';
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -18,6 +18,7 @@ function fakeContext(...answers) {
   const queries = [];
   const ctx = {
     graph: GRAPH,
+    findByValue,
     select: jest.fn(async (q) => {
       queries.push(q);
       return answers.shift() || [];
@@ -84,7 +85,7 @@ describe('loadFeeds', () => {
 
   it('has the nodes of the feeds, the root first', async () => {
     for (const { nodes } of await loadFeeds()) {
-      expect(nodes[0].find('<x>')).toBe('VALUES ?s { <x> }');
+      expect(nodes[0].find('<x>', context)).toBe('VALUES ?s { <x> }');
     }
   });
 
@@ -128,6 +129,12 @@ describe('toFeed', () => {
       [['ex:p'], [], []],
       [[], [], []],
     ]);
+  });
+
+  it('finds a node by its value when it has no find', () => {
+    const node = toFeed('x', { ...valid(), getNodes: () => [{}] }).nodes[0];
+
+    expect(node.find('<x>', context)).toBe('VALUES ?s { <x> }');
   });
 
   it('builds the member from the nodes by default', async () => {
@@ -270,7 +277,7 @@ describe('besluiten', () => {
     expect(queries[0]).toContain('?behandeling dct:subject ?agendapunt .');
     expect(queries[0]).toContain('?agendapunt besluit:geplandOpenbaar true .');
     expect(queries[0]).toContain(
-      '?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .',
+      '?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor ?gd ; prov:wasDerivedFrom ?d .',
     );
   });
 

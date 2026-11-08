@@ -21,7 +21,6 @@ export const memberPattern = `
 const NODES = [
   {
     // besluit
-    find: (s) => `VALUES ?s { ${s} }`,
     required: ['rdf:type', 'prov:wasDerivedFrom'],
     orFilters: [['eli:title', 'eli:description']],
     optional: [

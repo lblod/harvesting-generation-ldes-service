@@ -16,7 +16,6 @@ export const memberPattern = '?s a besluit:Zitting .';
 
 const NODES = [
   {
-    find: (s) => `VALUES ?s { ${s} }`,
     required: ['besluit:isGehoudenDoor', 'prov:wasDerivedFrom'],
     optional: [
       'besluit:geplandeStart',
@@ -34,8 +33,7 @@ const NODES = [
   },
   {
     // agendapunt
-    find: (s) =>
-      `${s} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`,
+    find: findAgendapunten,
     required: ['dct:title', 'prov:wasDerivedFrom'],
     optional: [
       'dct:description',
@@ -50,7 +48,8 @@ const NODES = [
   },
   {
     // behandeling
-    find: (s) => `${publicAgendapunten(s)} ?s dct:subject ?agendapunt .`,
+    find: (s) =>
+      `${publicAgendapunt(s, '?agendapunt')} ?s dct:subject ?agendapunt .`,
     required: ['dct:subject', 'besluit:openbaar', 'prov:wasDerivedFrom'],
     optional: [
       'rdf:type',
@@ -82,10 +81,7 @@ const NODES = [
   },
   {
     // documents
-    find: (
-      s,
-    ) => `{ ${s} besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag ?s }
-      UNION { ${behandelingen(s)} ?behandeling besluit:heeftUittreksel ?s }`,
+    find: findDocuments,
     optional: [
       'rdf:type',
       'dct:title',
@@ -100,8 +96,7 @@ const NODES = [
   },
   {
     // the zitting's links to its public agendapunten only
-    find: (s) =>
-      `VALUES ?s { ${s} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
+    find: findAgendapuntLinks,
     optional: ['besluit:behandelt'],
   },
 ];
@@ -110,10 +105,23 @@ export function getNodes() {
   return NODES;
 }
 
-function publicAgendapunten(zitting) {
-  return `${zitting} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
+function publicAgendapunt(zitting, agendapunt) {
+  return `${zitting} besluit:behandelt ${agendapunt} . ${agendapunt} besluit:geplandOpenbaar true .`;
+}
+
+function findAgendapunten(zitting) {
+  return publicAgendapunt(zitting, '?s');
+}
+
+function findDocuments(zitting) {
+  return `{ ${zitting} besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag ?s }
+      UNION { ${behandelingen(zitting)} ?behandeling besluit:heeftUittreksel ?s }`;
+}
+
+function findAgendapuntLinks(zitting, context) {
+  return `${context.findByValue(zitting)} ${publicAgendapunt('?s', '?o')}`;
 }
 
 function behandelingen(zitting) {
-  return `${publicAgendapunten(zitting)} ?behandeling dct:subject ?agendapunt .`;
+  return `${publicAgendapunt(zitting, '?agendapunt')} ?behandeling dct:subject ?agendapunt .`;
 }
