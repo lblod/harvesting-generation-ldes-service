@@ -1,7 +1,3 @@
-// One member per besluit, with its artikels. Only the besluiten of a public
-// agendapunt of a published zitting, so they always link to a behandeling in the zittingen feed.
-// No imports: this folder can be mounted.
-
 export const shape =
   'https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape';
 
@@ -15,22 +11,19 @@ PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 PREFIX sro: <https://data.vlaanderen.be/ns/slimmeraadpleegomgeving#>
 `;
 
-// A member (?s): a besluit of a public agendapunt of a published zitting.
 export const memberPattern = `
   ?s a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .
   ?behandeling dct:subject ?agendapunt .
   ?agendapunt besluit:geplandOpenbaar true .
-  ?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .
+  ?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor ?gd ; prov:wasDerivedFrom ?d .
 `;
 
-// The nodes of shapes/decision-ldes.ttl, the besluit first.
 const NODES = [
   {
     // besluit
     find: (s) => `VALUES ?s { ${s} }`,
     required: ['rdf:type', 'prov:wasDerivedFrom'],
-    // sh:or in the shape
-    or: [['eli:title', 'eli:description']],
+    orFilters: [['eli:title', 'eli:description']],
     optional: [
       'eli:title',
       'eli:description',

@@ -1,6 +1,3 @@
-// One member per zitting, with its public agendapunten and their behandelingen,
-// stemmingen and documents. No imports: this folder can be mounted.
-
 export const shape =
   'https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape';
 
@@ -15,14 +12,10 @@ PREFIX dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>
 PREFIX adms: <http://www.w3.org/ns/adms#>
 `;
 
-// A member (?s): a zitting.
 export const memberPattern = '?s a besluit:Zitting .';
 
-// The nodes of shapes/meeting-ldes.ttl, the zitting first. No property paths
-// in `find`: Virtuoso returns nothing for an inverse path with VALUES ?p.
 const NODES = [
   {
-    // zitting
     find: (s) => `VALUES ?s { ${s} }`,
     required: ['besluit:isGehoudenDoor', 'prov:wasDerivedFrom'],
     optional: [

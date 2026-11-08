@@ -119,10 +119,10 @@ export const memberPattern = "?s a ex:Thing .";
 describe('toFeed', () => {
   it('accepts a valid feed file, with defaults for what is left out', () => {
     expect(
-      toFeed('x', valid()).nodes.map(({ required, optional, or }) => [
-        required,
-        optional,
-        or,
+      toFeed('x', valid()).nodes.map((node) => [
+        node.required,
+        node.optional,
+        node.orFilters,
       ]),
     ).toEqual([
       [['ex:p'], [], []],
