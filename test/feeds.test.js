@@ -3,12 +3,15 @@ import { DataFactory } from "n3";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { loadFeeds, context, createContext } from "../lib/feeds";
-import { Feed } from "../lib/feed";
+import { loadFeeds, toFeed, context, createContext } from "../lib/feeds";
+
 const { namedNode, literal, quad } = DataFactory;
 
 const SUBJECT = "<http://ex.org/x/1>";
 const GRAPH = "<http://mu.semte.ch/graphs/public>";
+const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const BESLUIT = "http://data.vlaanderen.be/ns/besluit#";
+const PROV = "http://www.w3.org/ns/prov#";
 
 // collects the queries a feed sends, answering the CONSTRUCTs with the given quads in order
 function fakeContext(...answers) {
@@ -24,15 +27,34 @@ function fakeContext(...answers) {
   return { ctx, queries };
 }
 
-const ex = (name) => namedNode(`http://ex.org/${name}`);
-const on = (subject, ...predicates) =>
-  predicates.map((p) => quad(subject, namedNode(p), literal("x")));
+function ex(name) {
+  return namedNode(`http://ex.org/${name}`);
+}
 
-const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-const BESLUIT = "http://data.vlaanderen.be/ns/besluit#";
-const PROV = "http://www.w3.org/ns/prov#";
+function on(subject, ...predicates) {
+  return predicates.map((p) => quad(subject, namedNode(p), literal("x")));
+}
 
-const feed = async (name) => (await loadFeeds()).find((f) => f.name === name);
+async function feed(name) {
+  return (await loadFeeds()).find((f) => f.name === name);
+}
+
+// a valid feed file, to break in the tests
+function valid() {
+  return {
+    shape: "http://ex.org/shape",
+    prefixes: "PREFIX ex: <http://ex.org/>",
+    getNodes: () => [{ find: (s) => `VALUES ?s { ${s} }`, required: ["ex:p"] }, { find: (s) => `${s} ex:q ?s .` }],
+    isMember: async () => true,
+  };
+}
+
+// a folder with the given feed files
+function feedDir(files) {
+  const dir = mkdtempSync(join(tmpdir(), "feeds-"));
+  Object.entries(files).forEach(([file, content]) => writeFileSync(join(dir, file), content));
+  return dir;
+}
 
 describe("loadFeeds", () => {
   it("has a feed per file in config/feeds, named after the file, with its shape", async () => {
@@ -42,37 +64,51 @@ describe("loadFeeds", () => {
     ]);
   });
 
-  it("only has instances of Feed", async () => {
-    (await loadFeeds()).forEach((feed) => expect(feed instanceof Feed).toBe(true));
+  it("has the nodes of the feeds, the root first", async () => {
+    for (const { nodes } of await loadFeeds()) {
+      expect(nodes[0].find("<x>")).toBe("VALUES ?s { <x> }");
+    }
   });
 
-  it("refuses a feed file that does not export a Feed", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "feeds-"));
-    writeFileSync(join(dir, "other.js"), "export const shape = 'x';\nexport async function isMember() { return true; }\n");
+  it("loads a plain feed file, without imports", async () => {
+    const dir = feedDir({
+      "plain.js": `export const shape = "http://ex.org/shape";
+export function getNodes() { return [{ find: (s) => s, required: ["ex:p"] }]; }
+export async function isMember() { return true; }
+`,
+    });
 
-    await expect(loadFeeds(dir)).rejects.toThrow("must default-export an instance of a subclass of Feed");
+    const [plain] = await loadFeeds(dir);
+    expect([plain.name, plain.shape, plain.prefixes, plain.nodes[0].optional]).toEqual(["plain", "http://ex.org/shape", "", []]);
+  });
+
+  it("throws on a feed file that misses a required export, so the service does not start", async () => {
+    const dir = feedDir({ "broken.js": "export const shape = 'http://ex.org/shape';\n" });
+
+    await expect(loadFeeds(dir)).rejects.toThrow("config/feeds/broken.js must export getNodes, isMember");
   });
 });
 
-describe("Feed", () => {
-  it("needs isMember to be implemented", async () => {
-    class Incomplete extends Feed {
-      shape = "http://ex.org/shape";
-    }
-
-    await expect(new Incomplete().isMember(SUBJECT, {})).rejects.toThrow("Incomplete must implement isMember");
+describe("toFeed", () => {
+  it("accepts a valid feed file, with defaults for what is left out", () => {
+    expect(toFeed("x", valid()).nodes.map(({ required, optional, or }) => [required, optional, or])).toEqual([
+      [["ex:p"], [], []],
+      [[], [], []],
+    ]);
   });
 
-  it("builds the member from its nodes by default", async () => {
-    class Example extends Feed {
-      prefixes = "PREFIX ex: <http://ex.org/>";
-      nodes = [{ find: (s) => `VALUES ?s { ${s} }`, required: ["ex:p"], optional: [] }];
-    }
-    const example = new Example();
+  it("builds the member from the nodes by default", async () => {
+    const loaded = toFeed("x", valid());
     const build = jest.fn(async () => []);
 
-    await example.buildMember(SUBJECT, { build });
-    expect(build).toHaveBeenCalledWith(SUBJECT, { prefixes: "PREFIX ex: <http://ex.org/>", nodes: example.nodes });
+    await loaded.buildMember(SUBJECT, { build });
+    expect(build).toHaveBeenCalledWith(SUBJECT, { prefixes: "PREFIX ex: <http://ex.org/>", nodes: loaded.nodes });
+  });
+
+  it("uses the buildMember of the feed file when it has one", async () => {
+    const quads = on(ex("x/1"), "http://ex.org/p");
+
+    expect(await toFeed("x", { ...valid(), buildMember: async () => quads }).buildMember(SUBJECT, {})).toBe(quads);
   });
 });
 

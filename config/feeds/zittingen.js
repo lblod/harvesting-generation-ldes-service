@@ -1,21 +1,16 @@
-// LDES feed of the zittingen (meetings), one member per besluit:Zitting.
-// Shape: https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape (shapes/meeting-ldes.ttl)
+// Feed of the zittingen (meetings): one member per besluit:Zitting, with its
+// agendapunten, behandelingen, stemmingen and documents.
 //
-// Behandelingen and stemmingen live in this feed (not in the besluiten feed):
-// not every behandeling results in a besluit, and votes and aanwezigen are
-// completed by the notulen, at the same moment the zitting changes.
+// Only the public agendapunten (besluit:geplandOpenbaar true) are in a member.
+// A zitting without public agendapunten is still published, without agendapunten.
 //
-// Can be overridden by mounting /config/feeds (mu-javascript-template /config
-// convention, picked up on restart). `subject` and `graph` are passed as
-// escaped SPARQL IRIs (<...>).
-//
-// Only the public agendapunten (besluit:geplandOpenbaar true) are in a member,
-// with their behandelingen, stemmingen and uittreksels. A zitting without public
-// agendapunten is still published, without agendapunten.
+// This folder can be mounted (/config/feeds), so no imports here: the service
+// passes everything a feed needs in the context. A feed file must export
+// `shape`, `getNodes()` and `isMember()`, or the service does not start.
 
-import { Feed } from "../../lib/feed";
+export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
 
-const PREFIXES = `
+export const prefixes = `
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>
 PREFIX dct: <http://purl.org/dc/terms/>
@@ -26,13 +21,9 @@ PREFIX dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>
 PREFIX adms: <http://www.w3.org/ns/adms#>
 `;
 
-// The nodes of the shape (the shapes are closed): how to find a node ?s from
-// the zitting (explicit triple patterns rather than property paths: Virtuoso
-// returned nothing for an inverse path combined with VALUES ?p), and its
-// required (sh:minCount 1) and optional properties.
-const behandelingen = (s) =>
-  `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?behandeling dct:subject ?agendapunt .`;
-
+// The nodes of the shape (shapes/meeting-ldes.ttl), the zitting first.
+// `find` uses plain triple patterns, Virtuoso returns nothing for an inverse
+// path combined with VALUES ?p.
 const NODES = [
   {
     // zitting (root of the member)
@@ -105,7 +96,6 @@ const NODES = [
     // notulen, besluitenlijst, zittingsverslag, uittreksels
     find: (s) => `{ ${s} besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag ?s }
       UNION { ${behandelingen(s)} ?behandeling besluit:heeftUittreksel ?s }`,
-    required: [],
     optional: [
       "rdf:type",
       "dct:title",
@@ -122,21 +112,20 @@ const NODES = [
     // besluit:behandelt of the zitting (the root again), only to its public
     // agendapunten: find binds ?o, so `?s ?p ?o` only returns those links
     find: (s) => `VALUES ?s { ${s} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
-    required: [],
     optional: ["besluit:behandelt"],
   },
 ];
 
-class Zittingen extends Feed {
-  shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
-  prefixes = PREFIXES;
-  nodes = NODES;
-
-  // Only the subjects that are a zitting are a member of this feed.
-  async isMember(subject, { ask, graph }) {
-    return ask(`${PREFIXES}
-ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
-  }
+export function getNodes() {
+  return NODES;
 }
 
-export default new Zittingen();
+export async function isMember(subject, { ask, graph }) {
+  return ask(`${prefixes}
+ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
+}
+
+// The behandelingen of the public agendapunten of the zitting.
+function behandelingen(s) {
+  return `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?behandeling dct:subject ?agendapunt .`;
+}

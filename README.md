@@ -1,72 +1,71 @@
 # harvesting-generation-ldes-service
 
-Generates [LDES](https://semiceu.github.io/LinkedDataEventStreams/) feeds from the harvested data, using
-[ldes-producer](https://github.com/lblod/ldes-producer). It runs as the `gen-ldes` task, after the publish step
-(see [import-with-sameas-service](https://github.com/lblod/import-with-sameas-service)) and `generatingDelta`.
+Publishes the harvested data as [LDES](https://semiceu.github.io/LinkedDataEventStreams/) feeds, using
+[ldes-producer](https://github.com/lblod/ldes-producer). It runs as the `gen-ldes` task of a harvesting job.
 
-For each administrative unit (the `dct:subject` of the job) it maintains two streams:
+Each administrative unit gets two feeds:
 
-| Stream | Member | Nested resources in the member |
-| --- | --- | --- |
-| `<BASE_URL><unit>/zittingen` | `besluit:Zitting` | agendapunten, behandelingen, stemmingen, notulen / besluitenlijst / zittingsverslag / uittreksels |
-| `<BASE_URL><unit>/besluiten` | `besluit:Besluit` | artikels |
+- `<BASE_URL><unit>/zittingen`: one member per zitting, with its agendapunten, behandelingen, stemmingen and documents
+- `<BASE_URL><unit>/besluiten`: one member per besluit, with its artikels
 
-`<unit>` is the last segment of the URI of the administrative unit. Both streams advertise their SHACL shape with
-`tree:shape` (`shapes/meeting-ldes.ttl`, `shapes/decision-ldes.ttl`; the service does not read these files, they are
-the shapes consumers use for member extraction).
+`<unit>` is the last part of the URI of the administrative unit. Both feeds point to their SHACL shape with
+`tree:shape` (`shapes/meeting-ldes.ttl` and `shapes/decision-ldes.ttl`), consumers can use it to extract the members.
 
 ## How it works
 
-1. The task's input is the diff of the job (`new-insert-triples.ttl` and `to-remove-triples.ttl`).
-2. Every subject of these files is passed to every feed. A feed keeps the subjects of its type (an `ASK` query).
-3. For each of these members the feed builds the member (`CONSTRUCT` queries, one per node of the shape) and it is
-   added as a new version to the stream.
+1. The task reads which subjects changed in the job (`new-insert-triples.ttl` and `to-remove-triples.ttl`).
+2. Each feed checks which of those subjects are its members.
+3. For each member it builds the member from the public graph and adds it as a new version to the feed.
 
-### Feeds
+A few things to know:
 
-A feed is a `.js` file in `config/feeds`, named after the stream (`config/feeds/zittingen.js`,
-`config/feeds/besluiten.js`). It default-exports an instance of a subclass of `Feed` (`lib/feed.js`):
+- Only public agendapunten (`besluit:geplandOpenbaar true`) are published, in both feeds.
+- Behandelingen and stemmingen are in the zittingen feed. A besluit links to its behandeling with
+  `prov:wasGeneratedBy`, so to get a decision with its votes you join the two feeds on the behandeling.
+- Only the member is versioned, not the resources nested in it. Replace the whole member when you read a new version.
+- Members that are removed are not marked as deleted in the feed (yet).
+
+## Feeds
+
+The feeds are the `.js` files in `config/feeds`, the name of the file is the name of the feed. You can mount your own
+folder on `/config/feeds` to change a feed or add one.
+
+Because the folder can be mounted, a feed file has no imports: the service gives it what it needs (`ask`, `construct`,
+`build`, `graph`) in the context. A feed file exports:
 
 ```js
-import { Feed } from "../../lib/feed";
+export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the feed
+export const prefixes = `PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>`;   // optional
 
-class Zittingen extends Feed {
-  shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the stream (required)
-  prefixes = PREFIXES; // PREFIX declarations of the queries
-  nodes = NODES;       // the nodes of the shape, the root first
-  async isMember(subject, { ask, graph }) { ... } // -> boolean (required)
-  // buildMember(subject, { build }) -> array of quads, or null: by default built from `nodes`
+// the nodes of the shape, the member (root) first
+export function getNodes() {
+  return NODES;
 }
 
-export default new Zittingen();
+// whether the subject is a member of this feed
+export async function isMember(subject, { ask, graph }) {
+  return ask(`${prefixes} ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
+}
+
+// optional: build the member yourself (quads, or null to skip it)
+// export async function buildMember(subject, { build, construct }) { ... }
 ```
 
-`subject` and `graph` are escaped SPARQL IRIs (`<...>`). The context gives `ask(query)` (a boolean),
-`construct(query)` (the quads) and `build(subject, { prefixes, nodes })`. A node is `{ find, required, optional, or }`:
-`find(subject)` binds `?s` to the node from the root, `required` are the properties with `sh:minCount 1`, `optional`
-the others, and `or` (root only) the `sh:or` groups of which the root needs at least one property (e.g.
-`or: [["eli:title", "eli:description"]]`; they are only checked, list them in `required` or `optional` as their own
-`sh:minCount` says). `build` reads the required and then the optional properties of all the nodes, one query each,
-and returns null when the root misses a required property or an `or` group. Override `buildMember` for anything the
-nodes cannot express. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a
-feed (same file name) or add one (new file = new stream); the service is transpiled again with it when the container
-starts.
+A node is one resource in the member:
 
-Both feeds only publish the public agendapunten (`besluit:geplandOpenbaar true`): the zittingen with only their public
-agendapunten (and their behandelingen, stemmingen and uittreksels), and the besluiten of a public agendapunt of a
-published zitting, so a besluit always links to a behandeling that is in the zittingen feed.
+```js
+{
+  find: (s) => `${s} besluit:behandelt ?s .`, // how to get to it (?s) from the member
+  required: ["dct:title"],                    // sh:minCount 1 in the shape
+  optional: ["dct:description"],              // the other properties in the shape
+  or: [["eli:title", "eli:description"]],     // only on the root: sh:or, it needs at least one of them
+}
+```
 
-### Cutoff between the feeds
+A member is skipped when it misses one of its `required` properties, or has none of an `or` group.
 
-Behandelingen and stemmingen live in the zittingen feed. A besluit only links to its behandeling with
-`prov:wasGeneratedBy`; consumers that want a decision with its votes join the two feeds on the behandeling IRI.
-
-### Things to know
-
-- Nested resources are not versioned separately, only the member is. Consumers should replace the whole member per
-  version. Mind that two versions of the same member in one page share the IRIs (and thus the triples) of their nested
-  resources.
-- Removed members are not marked as deleted in the stream.
+The feeds are loaded when the service starts. If a feed file misses `shape`, `getNodes` or `isMember`, the service
+does not start and tells you which file misses what.
 
 ## Usage
 
@@ -79,34 +78,32 @@ Behandelingen and stemmingen live in the zittingen feed. A besluit only links to
     volumes:
       - ./data/files:/share
       - ./data/ldes:/data
-      # optional, to override or add feeds without a new image
+      # optional, your own feeds
       - ./config/ldes-feeds:/config/feeds
 ```
 
-Add the usual delta-notifier rule (scheduled tasks, `http://harvest_gen_ldes/delta`), the task to the job-controller
-config (`http://lblod.data.gift/id/jobs/concept/TaskOperation/gen-ldes`) and a dispatcher rule for `BASE_URL`.
+You also need a delta-notifier rule for the scheduled tasks (`http://harvest_gen_ldes/delta`), the task in the
+job-controller config (`http://lblod.data.gift/id/jobs/concept/TaskOperation/gen-ldes`) and a dispatcher rule for
+`BASE_URL`.
+
+### Environment variables
+
+The [ldes-producer ones](https://github.com/lblod/ldes-producer#configuration) (`BASE_URL` is required and ends with a
+`/`), and:
+
+| Variable | Default | |
+| --- | --- | --- |
+| `HIGH_LOAD_DATABASE_ENDPOINT` | `http://database:8890/sparql` | |
+| `DEFAULT_GRAPH` | `http://mu.semte.ch/graphs/harvesting` | graph with the jobs and their files |
+| `SOURCE_GRAPH` | `http://mu.semte.ch/graphs/public` | graph with the published data |
+| `BUFFER_SIZE` | `1000` | lines of the diff files read at once |
+| `BATCH_SIZE` | `10` | members built and written at once, keep the queries under the row limit of Virtuoso (10000) |
+
+### Endpoints
+
+- `POST /delta`: for the delta-notifier
+- `GET /:unit/:feed/:page`: the pages of a feed, `/:unit/:feed` redirects to the first page
 
 ## Tests
 
-`npm test` (jest, with [tortank](https://github.com/nbittich/tortank) to compare turtle, as in
-[test-suites](https://github.com/nbittich/test-suites)). They need no triplestore: the SPARQL answers are mocked.
-
-- `feeds.test.js`: the feeds found in `config/feeds`, and the queries they send.
-- `pipeline.test.js`: subjects are filtered by the feed, members are built and added.
-- `ldes.test.js`: the page written by ldes-producer, with the shape and the nested resources (`test/examples/ldes`).
-
-## Endpoints
-
-- `POST /delta`: delta-notifier entry point.
-- `GET /:unit/:feed/:nodeId`: pages of the stream (`feed` is `zittingen` or `besluiten`), `/:unit/:feed` redirects to page 1.
-
-## Environment variables
-
-Besides the [ldes-producer ones](https://github.com/lblod/ldes-producer#configuration) (`BASE_URL` is required, and
-must end with a `/`; `LDES_STREAM_PREFIX` defaults to `BASE_URL`; `PAGE_RESOURCES_COUNT`, `DATA_FOLDER`, ...):
-
-`HIGH_LOAD_DATABASE_ENDPOINT: "http://database:8890/sparql"`
-`DEFAULT_GRAPH: "http://mu.semte.ch/graphs/harvesting"`: graph with the job and the files of the tasks.
-`SOURCE_GRAPH: "http://mu.semte.ch/graphs/public"`: graph with the published data.
-`BUFFER_SIZE: "1000"`: number of lines of the diff files handled at once.
-`BATCH_SIZE: "10"`: number of members read and written at once. Keep it low enough for a query to stay below the row limit of the triplestore (10000 for Virtuoso).
+`npm test`. No triplestore needed, the SPARQL answers are mocked.

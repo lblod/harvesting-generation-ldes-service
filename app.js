@@ -6,7 +6,13 @@ import { run } from './lib/pipeline-generating-ldes';
 import { Delta } from './lib/delta';
 import { config } from './lib/ldes';
 import { failBusyTasks } from './lib/task';
+import { loadFeeds } from './lib/feeds';
 import { STATUS_SCHEDULED } from './constants';
+
+// Load the feeds (config/feeds, can be mounted) first: when one is not valid
+// this throws and the service does not start.
+const feeds = await loadFeeds();
+console.log(`Loaded the feeds: ${feeds.map(({ name }) => name).join(', ')}`);
 
 failBusyTasks();
 
@@ -29,7 +35,7 @@ app.post('/delta', async function(req, res, next) {
     }
     for (let entry of entries) {
       // NOTE: we don't wait as we do not want to keep hold off the connection.
-      run(entry);
+      run(entry, feeds);
     }
     return res.status(200).send().end();
   } catch (e) {
