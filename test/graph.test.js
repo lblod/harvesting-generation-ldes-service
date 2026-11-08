@@ -1,4 +1,4 @@
-import { getFilePaths, getSubjectsInFile } from '../lib/graph';
+import { getFilePaths, readDiffFile } from '../lib/graph';
 import { mkdtemp, writeFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -18,6 +18,7 @@ jest.mock(
     BATCH_SIZE: 2,
     DEFAULT_GRAPH: 'http://mu.semte.ch/graphs/test',
     HIGH_LOAD_DATABASE_ENDPOINT: 'http://virtuoso:8890/sparql',
+    RDF_TYPE: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
   }),
   { virtual: true },
 );
@@ -101,7 +102,9 @@ describe('getFilePaths', () => {
   });
 });
 
-describe('getSubjectsInFile', () => {
+describe('readDiffFile', () => {
+  const getSubjectsInFile = async (path) => (await readDiffFile(path)).subjects;
+
   const triples = `
 <http://ex.org/s/1> <http://ex.org/p> "a" .
 <http://ex.org/s/1> <http://ex.org/p> "b" .
@@ -182,5 +185,24 @@ _:blank <http://ex.org/p> "ignored" .
     const path = await write('corrupt.nt.gz', 'not gzipped at all');
 
     await expect(getSubjectsInFile(path)).rejects.toThrow();
+  });
+});
+
+describe('readDiffFile types', () => {
+  it('returns the rdf:type triples of the file, in the same read', async () => {
+    const path = join(dataFolder, 'types.nt');
+    await writeFile(
+      path,
+      `<http://ex.org/zitting/1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex.org/Zitting> .
+<http://ex.org/zitting/1> <http://ex.org/p> "a" .
+_:blank <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex.org/Ignored> .
+`,
+    );
+
+    const diff = await readDiffFile(path);
+    expect(diff.subjects).toEqual(new Set(['http://ex.org/zitting/1']));
+    expect(diff.types).toEqual([
+      { subject: 'http://ex.org/zitting/1', rdfType: 'http://ex.org/Zitting' },
+    ]);
   });
 });

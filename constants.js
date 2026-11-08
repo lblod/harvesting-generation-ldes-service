@@ -29,10 +29,14 @@ export const PREFIXES = `
 `;
 
 // files produced by the diff step, used to find out what changed in this job
-export const DIFF_FILE_NAMES = [
-  'new-insert-triples.ttl',
-  'to-remove-triples.ttl',
-];
+export const INSERTED_FILE_NAME = 'new-insert-triples.ttl';
+export const REMOVED_FILE_NAME = 'to-remove-triples.ttl';
+export const DIFF_FILE_NAMES = [INSERTED_FILE_NAME, REMOVED_FILE_NAME];
+
+export const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+export const AS_TOMBSTONE = 'https://www.w3.org/ns/activitystreams#Tombstone';
+export const AS_FORMER_TYPE =
+  'https://www.w3.org/ns/activitystreams#formerType';
 
 export const HIGH_LOAD_DATABASE_ENDPOINT =
   process.env.HIGH_LOAD_DATABASE_ENDPOINT || 'http://database:8890/sparql';

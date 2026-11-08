@@ -17,6 +17,7 @@ A feed is a file in `config/feeds`. Mount your own folder on `/config/feeds` to 
 imports and exports:
 
 - `shape`: the `tree:shape` of the feed
+- `rdfType`: the type of its members. When a member loses this type, a tombstone is added to the feed
 - `prefixes` (optional): the prefixes of its queries
 - `memberPattern`: the triple patterns a member `?s` matches, e.g. `?s a besluit:Zitting .`
 - `getNodes()`: the resources in a member, the member itself first. Each is

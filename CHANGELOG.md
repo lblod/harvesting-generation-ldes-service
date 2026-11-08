@@ -15,6 +15,7 @@ consumers know what a member contains.
 - the feeds are described in `config/feeds` (can be mounted) and follow the shapes
 - only public agendapunten are published
 - a member that misses something the shape requires is not published, an incomplete part of it is left out
+- a removed member gets a tombstone in its feed, like the tombstone-service does
 
 #### Shape changes
 
@@ -27,5 +28,4 @@ Without these we wouldn't publish anything for e.g `raadpleeg-ham`:
 
 - update the shacl profile for the filter step with the new shape (just a config change in the harvester)
 - add an enrichment step to fill in what publishers leave out (to run before the filter step)
-- data cleanup 
-- removed members are marked as tombstone
+- data cleanup

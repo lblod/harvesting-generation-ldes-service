@@ -1,6 +1,8 @@
 export const shape =
   'https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape';
 
+export const rdfType = 'http://data.vlaanderen.be/ns/besluit#Besluit';
+
 export const prefixes = `
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX besluit: <http://data.vlaanderen.be/ns/besluit#>

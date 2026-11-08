@@ -1,6 +1,6 @@
 import { addMembers } from '../lib/ldes';
 import { findMembers } from '../lib/feeds';
-import { generateFeed } from '../lib/pipeline-generating-ldes';
+import { generateFeed, addTombstones } from '../lib/pipeline-generating-ldes';
 
 jest.mock('../lib/ldes', () => ({ addMembers: jest.fn() }));
 jest.mock('../lib/feeds', () => ({ context: {}, findMembers: jest.fn() }));
@@ -54,6 +54,39 @@ describe('generateFeed', () => {
     await generateFeed('unit-1', feed, new Set([STEMMING]));
 
     expect(feed.buildMember).not.toHaveBeenCalled();
+    expect(addMembers).not.toHaveBeenCalled();
+  });
+});
+
+describe('addTombstones', () => {
+  const ZITTING_TYPE = 'http://data.vlaanderen.be/ns/besluit#Zitting';
+  const feed = { name: 'zittingen', rdfType: ZITTING_TYPE };
+
+  it('adds a tombstone for every removed member', async () => {
+    await addTombstones('unit-1', feed, new Set([ZITTING]));
+
+    expect(addMembers).toHaveBeenCalledTimes(1);
+    const [unit, calledFeed, stores] = addMembers.mock.calls[0];
+    expect([unit, calledFeed, [...stores.keys()]]).toEqual([
+      'unit-1',
+      feed,
+      [ZITTING],
+    ]);
+    const quads = stores.get(ZITTING).getQuads(null, null, null, null);
+    expect(
+      quads.map((quad) => [quad.predicate.value, quad.object.value]),
+    ).toEqual([
+      [
+        'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+        'https://www.w3.org/ns/activitystreams#Tombstone',
+      ],
+      ['https://www.w3.org/ns/activitystreams#formerType', ZITTING_TYPE],
+    ]);
+  });
+
+  it('adds nothing when no member of the feed was removed', async () => {
+    await addTombstones('unit-1', feed, new Set());
+
     expect(addMembers).not.toHaveBeenCalled();
   });
 });

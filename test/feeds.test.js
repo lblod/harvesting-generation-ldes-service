@@ -52,6 +52,7 @@ async function feed(name) {
 function valid() {
   return {
     shape: 'http://ex.org/shape',
+    rdfType: 'http://ex.org/Thing',
     prefixes: 'PREFIX ex: <http://ex.org/>',
     getNodes: () => [
       { find: (s) => `VALUES ?s { ${s} }`, required: ['ex:p'] },
@@ -98,6 +99,7 @@ describe('loadFeeds', () => {
   it('loads a plain feed file, without imports', async () => {
     const dir = feedDir({
       'plain.js': `export const shape = "http://ex.org/shape";
+export const rdfType = "http://ex.org/Thing";
 export function getNodes() { return [{ find: (s) => s, required: ["ex:p"] }]; }
 export const memberPattern = "?s a ex:Thing .";
 `,
@@ -118,7 +120,7 @@ export const memberPattern = "?s a ex:Thing .";
     });
 
     await expect(loadFeeds(dir)).rejects.toThrow(
-      'config/feeds/broken.js must export memberPattern, getNodes',
+      'config/feeds/broken.js must export rdfType, memberPattern, getNodes',
     );
   });
 });
