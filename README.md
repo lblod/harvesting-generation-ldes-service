@@ -20,10 +20,10 @@ imports and exports:
 - `prefixes` (optional): the prefixes of its queries
 - `memberPattern`: the triple patterns a member `?s` matches, e.g. `?s a besluit:Zitting .`
 - `getNodes()`: the resources in a member, the member itself first. Each is
-  `{ find, required, optional, orFilters }`: how to find it from the member (by default the member itself), and its properties
+  `{ find, required, optional }`: how to find it from the member (by default the member itself), and its properties
 
-A member is skipped when it misses a `required` property, or all the properties of an `orFilters` group. The service doesn't
-start when a feed file misses one of the exports.
+A member is skipped when it misses a `required` property. The service doesn't start when a feed file misses one of
+the exports.
 
 ## Usage
 

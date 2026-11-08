@@ -22,7 +22,6 @@ const NODES = [
   {
     // besluit
     required: ['rdf:type', 'prov:wasDerivedFrom'],
-    orFilters: [['eli:title', 'eli:description']],
     optional: [
       'eli:title',
       'eli:description',

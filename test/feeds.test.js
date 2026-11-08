@@ -120,14 +120,10 @@ export const memberPattern = "?s a ex:Thing .";
 describe('toFeed', () => {
   it('accepts a valid feed file, with defaults for what is left out', () => {
     expect(
-      toFeed('x', valid()).nodes.map((node) => [
-        node.required,
-        node.optional,
-        node.orFilters,
-      ]),
+      toFeed('x', valid()).nodes.map((node) => [node.required, node.optional]),
     ).toEqual([
-      [['ex:p'], [], []],
-      [[], [], []],
+      [['ex:p'], []],
+      [[], []],
     ]);
   });
 
@@ -296,14 +292,12 @@ describe('besluiten', () => {
     expect(opt).toContain('eli:date_publication');
   });
 
-  it('needs a title or a description (sh:or), but reads both as optional', async () => {
+  it('reads the title, the description and the text as optional', async () => {
     const { ctx, queries } = fakeContext(required);
 
     await (await feed('besluiten')).buildMember(SUBJECT, ctx);
     const [req, opt] = queries;
-    expect(req).toContain(
-      'FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })',
-    );
+    expect(req).not.toContain('eli:title');
     expect(req).toContain('VALUES ?p { rdf:type prov:wasDerivedFrom }');
     expect(opt).toContain('eli:title eli:description');
     expect(req).not.toContain('FILTER (EXISTS { ?s prov:value [] })');
