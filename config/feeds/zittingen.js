@@ -8,6 +8,12 @@
 // Can be overridden by mounting /config/feeds (mu-javascript-template /config
 // convention, picked up on restart). `subject` and `graph` are passed as
 // escaped SPARQL IRIs (<...>).
+//
+// Only the public agendapunten (besluit:geplandOpenbaar true) are in a member,
+// with their behandelingen, stemmingen and uittreksels. A zitting without public
+// agendapunten is still published, without agendapunten.
+
+import { Feed } from "../../lib/feed";
 
 const PREFIXES = `
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -24,7 +30,8 @@ PREFIX adms: <http://www.w3.org/ns/adms#>
 // the zitting (explicit triple patterns rather than property paths: Virtuoso
 // returned nothing for an inverse path combined with VALUES ?p), and its
 // required (sh:minCount 1) and optional properties.
-const behandelingen = (s) => `${s} besluit:behandelt ?agendapunt . ?behandeling dct:subject ?agendapunt .`;
+const behandelingen = (s) =>
+  `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?behandeling dct:subject ?agendapunt .`;
 
 const NODES = [
   {
@@ -40,7 +47,7 @@ const NODES = [
       "besluit:heeftAanwezigeBijStart",
       "besluit:heeftVoorzitter",
       "besluit:heeftSecretaris",
-      "besluit:behandelt",
+      // besluit:behandelt is read by the last node, only to the public agendapunten
       "besluit:heeftNotulen",
       "besluit:heeftBesluitenlijst",
       "besluit:heeftZittingsverslag",
@@ -49,7 +56,7 @@ const NODES = [
   },
   {
     // agendapunt
-    find: (s) => `${s} besluit:behandelt ?s .`,
+    find: (s) => `${s} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`,
     required: ["dct:title", "prov:wasDerivedFrom"],
     optional: [
       "dct:description",
@@ -64,7 +71,7 @@ const NODES = [
   },
   {
     // behandeling
-    find: (s) => `${s} besluit:behandelt ?agendapunt . ?s dct:subject ?agendapunt .`,
+    find: (s) => `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?s dct:subject ?agendapunt .`,
     required: ["dct:subject", "besluit:openbaar", "prov:wasDerivedFrom"],
     optional: [
       "rdf:type",
@@ -111,18 +118,25 @@ const NODES = [
       "mu:uuid",
     ],
   },
+  {
+    // besluit:behandelt of the zitting (the root again), only to its public
+    // agendapunten: find binds ?o, so `?s ?p ?o` only returns those links
+    find: (s) => `VALUES ?s { ${s} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
+    required: [],
+    optional: ["besluit:behandelt"],
+  },
 ];
 
-export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
+class Zittingen extends Feed {
+  shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
+  prefixes = PREFIXES;
+  nodes = NODES;
 
-// Only the subjects that are a zitting are a member of this feed.
-export async function isMember(subject, { ask, graph }) {
-  return ask(`${PREFIXES}
+  // Only the subjects that are a zitting are a member of this feed.
+  async isMember(subject, { ask, graph }) {
+    return ask(`${PREFIXES}
 ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
+  }
 }
 
-// The member: the zitting and its nested resources, as an array of quads, or null when
-// the zitting misses one of its required properties.
-export async function buildMember(subject, { build }) {
-  return build(subject, { prefixes: PREFIXES, nodes: NODES });
-}
+export default new Zittingen();

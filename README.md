@@ -25,21 +25,36 @@ the shapes consumers use for member extraction).
 ### Feeds
 
 A feed is a `.js` file in `config/feeds`, named after the stream (`config/feeds/zittingen.js`,
-`config/feeds/besluiten.js`). It exports:
+`config/feeds/besluiten.js`). It default-exports an instance of a subclass of `Feed` (`lib/feed.js`):
 
 ```js
-export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the stream
-export async function isMember(subject, { ask, graph }) { ... }        // -> boolean
-export async function buildMember(subject, { build }) { ... }          // -> array of quads, or null
+import { Feed } from "../../lib/feed";
+
+class Zittingen extends Feed {
+  shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the stream (required)
+  prefixes = PREFIXES; // PREFIX declarations of the queries
+  nodes = NODES;       // the nodes of the shape, the root first
+  async isMember(subject, { ask, graph }) { ... } // -> boolean (required)
+  // buildMember(subject, { build }) -> array of quads, or null: by default built from `nodes`
+}
+
+export default new Zittingen();
 ```
 
-`subject` and `graph` are escaped SPARQL IRIs (`<...>`). `ask(query)` returns a boolean, `construct(query)` the
-quads. `build(subject, { prefixes, nodes })` builds the member from the nodes of the shape (`{ find, required,
-optional, or }`, the root first) with one query for the required and one for the optional properties; it returns null
-when the root misses a required property (`sh:minCount 1`) or has none of the properties of an `or` group (an
-`sh:or` of `sh:minCount 1` shapes, e.g. `or: [["eli:title", "eli:description"]]`). The properties of an `or` group
-are only checked, list them in `required` or `optional` as their own `sh:minCount` says. Only the root is checked. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
-name) or add one (new file = new stream); the service is transpiled again with it when the container starts.
+`subject` and `graph` are escaped SPARQL IRIs (`<...>`). The context gives `ask(query)` (a boolean),
+`construct(query)` (the quads) and `build(subject, { prefixes, nodes })`. A node is `{ find, required, optional, or }`:
+`find(subject)` binds `?s` to the node from the root, `required` are the properties with `sh:minCount 1`, `optional`
+the others, and `or` (root only) the `sh:or` groups of which the root needs at least one property (e.g.
+`or: [["eli:title", "eli:description"]]`; they are only checked, list them in `required` or `optional` as their own
+`sh:minCount` says). `build` reads the required and then the optional properties of all the nodes, one query each,
+and returns null when the root misses a required property or an `or` group. Override `buildMember` for anything the
+nodes cannot express. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a
+feed (same file name) or add one (new file = new stream); the service is transpiled again with it when the container
+starts.
+
+Both feeds only publish the public agendapunten (`besluit:geplandOpenbaar true`): the zittingen with only their public
+agendapunten (and their behandelingen, stemmingen and uittreksels), and the besluiten of a public agendapunt of a
+published zitting, so a besluit always links to a behandeling that is in the zittingen feed.
 
 ### Cutoff between the feeds
 

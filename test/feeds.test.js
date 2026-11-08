@@ -1,6 +1,10 @@
 import { querySudo } from "@lblod/mu-auth-sudo";
 import { DataFactory } from "n3";
+import { mkdtempSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { loadFeeds, context, createContext } from "../lib/feeds";
+import { Feed } from "../lib/feed";
 const { namedNode, literal, quad } = DataFactory;
 
 const SUBJECT = "<http://ex.org/x/1>";
@@ -37,6 +41,39 @@ describe("loadFeeds", () => {
       ["zittingen", "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"],
     ]);
   });
+
+  it("only has instances of Feed", async () => {
+    (await loadFeeds()).forEach((feed) => expect(feed instanceof Feed).toBe(true));
+  });
+
+  it("refuses a feed file that does not export a Feed", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "feeds-"));
+    writeFileSync(join(dir, "other.js"), "export const shape = 'x';\nexport async function isMember() { return true; }\n");
+
+    await expect(loadFeeds(dir)).rejects.toThrow("must default-export an instance of a subclass of Feed");
+  });
+});
+
+describe("Feed", () => {
+  it("needs isMember to be implemented", async () => {
+    class Incomplete extends Feed {
+      shape = "http://ex.org/shape";
+    }
+
+    await expect(new Incomplete().isMember(SUBJECT, {})).rejects.toThrow("Incomplete must implement isMember");
+  });
+
+  it("builds the member from its nodes by default", async () => {
+    class Example extends Feed {
+      prefixes = "PREFIX ex: <http://ex.org/>";
+      nodes = [{ find: (s) => `VALUES ?s { ${s} }`, required: ["ex:p"], optional: [] }];
+    }
+    const example = new Example();
+    const build = jest.fn(async () => []);
+
+    await example.buildMember(SUBJECT, { build });
+    expect(build).toHaveBeenCalledWith(SUBJECT, { prefixes: "PREFIX ex: <http://ex.org/>", nodes: example.nodes });
+  });
 });
 
 describe("zittingen", () => {
@@ -70,6 +107,23 @@ describe("zittingen", () => {
     expect(opt).toContain("?behandeling besluit:heeftUittreksel ?s");
   });
 
+  it("only has the public agendapunten, with their behandelingen, stemmingen and uittreksels", async () => {
+    const { ctx, queries } = fakeContext(required);
+
+    await (await feed("zittingen")).buildMember(SUBJECT, ctx);
+    const [req, opt] = queries;
+    const publicAgendapunt = `${SUBJECT} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
+    for (const query of [req, opt]) {
+      expect(query).toContain(`${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`); // agendapunt
+      expect(query).toContain(`${publicAgendapunt} ?s dct:subject ?agendapunt .`); // behandeling
+      expect(query).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`);
+    }
+    expect(opt).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftUittreksel ?s`);
+    // the zitting only links to its public agendapunten, read once by the last node
+    expect(opt).toContain(`VALUES ?s { ${SUBJECT} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`);
+    expect(opt.match(/besluit:behandelt(?! \?)/g)).toHaveLength(1);
+  });
+
   it("only reads the zitting when it has its required properties", async () => {
     const { ctx, queries } = fakeContext(required);
 
@@ -98,6 +152,17 @@ describe("besluiten", () => {
 
     await (await feed("besluiten")).isMember(SUBJECT, ctx);
     expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit`);
+  });
+
+  it("only has the besluiten of a public agendapunt of a published zitting", async () => {
+    const { ctx, queries } = fakeContext();
+
+    await (await feed("besluiten")).isMember(SUBJECT, ctx);
+    expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .`);
+    expect(queries[0]).toContain("?behandeling dct:subject ?agendapunt .");
+    expect(queries[0]).toContain("?agendapunt besluit:geplandOpenbaar true .");
+    // the required properties of the zitting, so its behandeling is in the zittingen feed
+    expect(queries[0]).toContain("?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .");
   });
 
   it("builds the member from the besluit and its artikels, in two queries", async () => {

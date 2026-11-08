@@ -8,6 +8,12 @@
 // Can be overridden by mounting /config/feeds (mu-javascript-template /config
 // convention, picked up on restart). `subject` and `graph` are passed as
 // escaped SPARQL IRIs (<...>).
+//
+// Only the besluiten of a public agendapunt (besluit:geplandOpenbaar true) of a
+// published zitting are in this feed, so a besluit always links to a
+// behandeling that is in the zittingen feed.
+
+import { Feed } from "../../lib/feed";
 
 const PREFIXES = `
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -65,16 +71,22 @@ const NODES = [
   },
 ];
 
-export const shape = "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape";
+class Besluiten extends Feed {
+  shape = "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape";
+  prefixes = PREFIXES;
+  nodes = NODES;
 
-// Only the subjects that are a besluit are a member of this feed.
-export async function isMember(subject, { ask, graph }) {
-  return ask(`${PREFIXES}
-ASK { GRAPH ${graph} { ${subject} a besluit:Besluit } }`);
+  // A besluit whose behandeling is about a public agendapunt of a zitting that
+  // is published (it has the required properties of the zitting shape).
+  async isMember(subject, { ask, graph }) {
+    return ask(`${PREFIXES}
+ASK { GRAPH ${graph} {
+  ${subject} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .
+  ?behandeling dct:subject ?agendapunt .
+  ?agendapunt besluit:geplandOpenbaar true .
+  ?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .
+} }`);
+  }
 }
 
-// The member: the besluit and its artikels, as an array of quads, or null when
-// the besluit misses one of its required properties.
-export async function buildMember(subject, { build }) {
-  return build(subject, { prefixes: PREFIXES, nodes: NODES });
-}
+export default new Besluiten();
