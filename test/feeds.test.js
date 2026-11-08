@@ -191,67 +191,70 @@ describe('zittingen', () => {
     expect(queries).toHaveLength(0);
   });
 
-  it('reads the required, then the optional properties of all nodes, in two queries', async () => {
-    const optional = on(ex('stemming/1'), `${BESLUIT}aantalVoorstanders`);
-    const { ctx, queries } = fakeContext(required, optional);
+  it('reads all the properties of all the nodes, in one query', async () => {
+    const quads = [
+      ...required,
+      ...on(ex('stemming/1'), `${BESLUIT}aantalVoorstanders`),
+    ];
+    const { ctx, queries } = fakeContext(quads);
 
-    const quads = await (await feed('zittingen')).buildMember(SUBJECT, ctx);
-
-    expect(quads).toEqual([...required, ...optional]);
-    expect(queries).toHaveLength(2);
-    queries.forEach((q) => expect(q).toContain(`GRAPH ${GRAPH}`));
-    const [req, opt] = queries;
-    expect(req).toContain(`VALUES ?s { ${SUBJECT} }`);
-    expect(req).toContain('besluit:isGehoudenDoor');
-    expect(req).toContain('besluit:gevolg');
-    expect(req).not.toContain('besluit:heeftNotulen|');
-    expect(opt).toContain(`${SUBJECT} besluit:behandelt ?s .`);
-    expect(opt).toContain(
+    expect(await (await feed('zittingen')).buildMember(SUBJECT, ctx)).toEqual(
+      quads,
+    );
+    expect(queries).toHaveLength(1);
+    const [query] = queries;
+    expect(query).toContain(`GRAPH ${GRAPH}`);
+    expect(query).toContain(`VALUES ?s { ${SUBJECT} }`);
+    expect(query).toContain('besluit:isGehoudenDoor');
+    expect(query).toContain(
+      'besluit:gevolg prov:wasDerivedFrom besluit:geheim',
+    );
+    expect(query).toContain(`${SUBJECT} besluit:behandelt ?s .`);
+    expect(query).toContain(
       '?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .',
     );
-    expect(opt).toContain('besluit:aantalVoorstanders');
-    expect(opt).toContain('besluit:heeftNotulen|besluit:heeftBesluitenlijst');
-    expect(opt).toContain('?behandeling besluit:heeftUittreksel ?s');
+    expect(query).toContain('besluit:aantalVoorstanders');
+    expect(query).toContain('besluit:heeftNotulen|besluit:heeftBesluitenlijst');
+    expect(query).toContain('?behandeling besluit:heeftUittreksel ?s');
   });
 
   it('only has the public agendapunten, with their behandelingen, stemmingen and uittreksels', async () => {
     const { ctx, queries } = fakeContext(required);
 
     await (await feed('zittingen')).buildMember(SUBJECT, ctx);
-    const [req, opt] = queries;
+    const [query] = queries;
     const publicAgendapunt = `${SUBJECT} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
-    for (const query of [req, opt]) {
-      expect(query).toContain(
-        `${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`,
-      );
-      expect(query).toContain(
-        `${publicAgendapunt} ?s dct:subject ?agendapunt .`,
-      );
-      expect(query).toContain(
-        `${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`,
-      );
-    }
-    expect(opt).toContain(
+    expect(query).toContain(
+      `${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`,
+    );
+    expect(query).toContain(`${publicAgendapunt} ?s dct:subject ?agendapunt .`);
+    expect(query).toContain(
+      `${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`,
+    );
+    expect(query).toContain(
       `${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftUittreksel ?s`,
     );
-    expect(opt).toContain(
+    expect(query).toContain(
       `VALUES ?s { ${SUBJECT} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
     );
-    expect(opt.match(/besluit:behandelt(?! \?)/g)).toHaveLength(1);
+    expect(query.match(/besluit:behandelt(?! \?)/g)).toHaveLength(1);
   });
 
-  it('only reads the zitting when it has its required properties', async () => {
+  it('only reads the resources that have their required properties', async () => {
     const { ctx, queries } = fakeContext(required);
 
     await (await feed('zittingen')).buildMember(SUBJECT, ctx);
-    expect(queries[0]).toContain(
-      'FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })',
-    );
-    expect(queries[0]).toContain(
-      'FILTER (EXISTS { ?s prov:wasDerivedFrom [] })',
-    );
-    expect(queries[0].match(/FILTER/g)).toHaveLength(2);
-    expect(queries[0]).not.toContain('rdf:type');
+    const [query] = queries;
+    // zitting
+    expect(query).toContain('FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })');
+    // agendapunt
+    expect(query).toContain('FILTER (EXISTS { ?s dct:title [] })');
+    // behandeling
+    expect(query).toContain('FILTER (EXISTS { ?s besluit:openbaar [] })');
+    // stemming
+    expect(query).toContain('FILTER (EXISTS { ?s besluit:gevolg [] })');
+    expect(query.match(/FILTER/g)).toHaveLength(10);
+    expect(query.match(/VALUES \?p \{[^}]*\}/)[0]).not.toContain('rdf:type');
   });
 
   it('is not built when the zitting misses a required property (nothing comes back for it)', async () => {
@@ -285,31 +288,33 @@ describe('besluiten', () => {
     );
   });
 
-  it('builds the member from the besluit and its artikels, in two queries', async () => {
+  it('builds the member from the besluit and its artikels, in one query', async () => {
     const { ctx, queries } = fakeContext(required);
 
     expect(await (await feed('besluiten')).buildMember(SUBJECT, ctx)).toEqual(
       required,
     );
-    expect(queries).toHaveLength(2);
-    const [req, opt] = queries;
-    expect(req).toContain(`${SUBJECT} eli:has_part ?s .`);
-    expect(opt).toContain('prov:wasGeneratedBy');
-    expect(opt).not.toContain('besluit:heeftStemming');
-    expect(opt).toContain('eli:passed_by');
-    expect(opt).toContain('eli:date_publication');
+    expect(queries).toHaveLength(1);
+    const [query] = queries;
+    expect(query).toContain(`${SUBJECT} eli:has_part ?s .`);
+    expect(query).toContain('prov:wasGeneratedBy');
+    expect(query).not.toContain('besluit:heeftStemming');
+    expect(query).toContain('eli:passed_by');
+    expect(query).toContain('eli:date_publication');
   });
 
-  it('reads the title, the description and the text as optional', async () => {
+  it('only reads the besluit and the artikels that have their required properties', async () => {
     const { ctx, queries } = fakeContext(required);
 
     await (await feed('besluiten')).buildMember(SUBJECT, ctx);
-    const [req, opt] = queries;
-    expect(req).not.toContain('eli:title');
-    expect(req).toContain('VALUES ?p { rdf:type prov:wasDerivedFrom }');
-    expect(opt).toContain('eli:title eli:description');
-    expect(req).not.toContain('FILTER (EXISTS { ?s prov:value [] })');
-    expect(opt).toMatch(/VALUES \?p \{[^}]*prov:value/);
+    const [query] = queries;
+    expect(query.match(/FILTER/g)).toHaveLength(4);
+    expect(query).toContain('FILTER (EXISTS { ?s rdf:type [] })');
+    expect(query).toContain('FILTER (EXISTS { ?s prov:value [] })');
+    expect(query).toContain(
+      'VALUES ?p { rdf:type prov:wasDerivedFrom eli:title eli:description',
+    );
+    expect(query).toMatch(/VALUES \?p \{[^}]*prov:value/);
   });
 
   it('is not built when the besluit misses a required property, even if an artikel has it', async () => {

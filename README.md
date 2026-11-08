@@ -22,7 +22,7 @@ imports and exports:
 - `getNodes()`: the resources in a member, the member itself first. Each is
   `{ find, required, optional }`: how to find it from the member (by default the member itself), and its properties
 
-A member is skipped when it misses a `required` property. The service doesn't start when a feed file misses one of
+A member is skipped when it misses a `required` property, a resource in it that misses one is left out. The service doesn't start when a feed file misses one of
 the exports.
 
 ## Usage
