@@ -15,21 +15,28 @@ console.log(`Loaded feeds: ${feeds.map(({ name }) => name).join(', ')}`);
 
 failBusyTasks();
 
-app.use(bodyParser.json({
-  type: function(req) {
-    return /^application\/json/.test(req.get('content-type'));
-  }
-}));
+app.use(
+  bodyParser.json({
+    type: function (req) {
+      return /^application\/json/.test(req.get('content-type'));
+    },
+  }),
+);
 
-app.get('/', function(_, res) {
+app.get('/', function (_, res) {
   res.send('Hello harvesting-gen-ldes-service');
 });
 
-app.post('/delta', async function(req, res, next) {
+app.post('/delta', async function (req, res, next) {
   try {
-    const entries = new Delta(req.body).getInsertsFor('http://www.w3.org/ns/adms#status', STATUS_SCHEDULED);
+    const entries = new Delta(req.body).getInsertsFor(
+      'http://www.w3.org/ns/adms#status',
+      STATUS_SCHEDULED,
+    );
     if (!entries.length) {
-      console.log('Delta did not contain potential tasks that are ready for generating ldes, awaiting the next batch!');
+      console.log(
+        'Delta did not contain potential tasks that are ready for generating ldes, awaiting the next batch!',
+      );
       return res.status(204).send();
     }
     for (let entry of entries) {
@@ -38,16 +45,22 @@ app.post('/delta', async function(req, res, next) {
     }
     return res.status(200).send().end();
   } catch (e) {
-    console.log(`Something unexpected went wrong while handling delta harvesting-tasks!`);
+    console.log(
+      `Something unexpected went wrong while handling delta harvesting-tasks!`,
+    );
     console.error(e);
     return next(e);
   }
 });
 
 // The LDES pages: /:unit/:feed/:nodeId, with the unit being the uuid of the administrative unit.
-app.get('/:unit/:feed/:nodeId?', async function(req, res, next) {
+app.get('/:unit/:feed/:nodeId?', async function (req, res, next) {
   const { unit, feed, nodeId } = req.params;
-  if (!/^[\w-]+$/.test(unit) || !/^[\w-]+$/.test(feed) || (nodeId && !/^\d+$/.test(nodeId))) {
+  if (
+    !/^[\w-]+$/.test(unit) ||
+    !/^[\w-]+$/.test(feed) ||
+    (nodeId && !/^\d+$/.test(nodeId))
+  ) {
     return res.status(404).send();
   }
   if (!nodeId) {

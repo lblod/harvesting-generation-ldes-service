@@ -1,20 +1,20 @@
-import { addMembers } from "../lib/ldes";
-import { generateFeed } from "../lib/pipeline-generating-ldes";
+import { addMembers } from '../lib/ldes';
+import { generateFeed } from '../lib/pipeline-generating-ldes';
 
-jest.mock("../lib/ldes", () => ({ addMembers: jest.fn() }));
+jest.mock('../lib/ldes', () => ({ addMembers: jest.fn() }));
 
-const ZITTING = "http://ex.org/zitting/1";
-const STEMMING = "http://ex.org/stemming/1";
+const ZITTING = 'http://ex.org/zitting/1';
+const STEMMING = 'http://ex.org/stemming/1';
 
-describe("generateFeed", () => {
-  it("passes every subject to the feed, and adds the members it builds", async () => {
+describe('generateFeed', () => {
+  it('passes every subject to the feed, and adds the members it builds', async () => {
     const feed = {
-      name: "zittingen",
+      name: 'zittingen',
       isMember: jest.fn(async (subject) => subject === `<${ZITTING}>`),
       buildMember: jest.fn(async () => []),
     };
 
-    await generateFeed("unit-1", feed, new Set([ZITTING, STEMMING]));
+    await generateFeed('unit-1', feed, new Set([ZITTING, STEMMING]));
 
     expect(feed.isMember.mock.calls.map(([subject]) => subject)).toEqual([
       `<${ZITTING}>`,
@@ -24,26 +24,34 @@ describe("generateFeed", () => {
     expect(feed.buildMember.mock.calls[0][0]).toBe(`<${ZITTING}>`);
     expect(addMembers).toHaveBeenCalledTimes(1);
     const [unit, calledFeed, stores] = addMembers.mock.calls[0];
-    expect([unit, calledFeed, [...stores.keys()]]).toEqual(["unit-1", feed, [ZITTING]]);
+    expect([unit, calledFeed, [...stores.keys()]]).toEqual([
+      'unit-1',
+      feed,
+      [ZITTING],
+    ]);
   });
 
-  it("skips the members that cannot be built", async () => {
+  it('skips the members that cannot be built', async () => {
     const feed = {
-      name: "zittingen",
+      name: 'zittingen',
       isMember: async () => true,
       buildMember: jest.fn(async () => null),
     };
 
-    await generateFeed("unit-1", feed, new Set([ZITTING]));
+    await generateFeed('unit-1', feed, new Set([ZITTING]));
 
     expect(feed.buildMember).toHaveBeenCalledTimes(1);
     expect(addMembers).not.toHaveBeenCalled();
   });
 
-  it("adds nothing when no subject is a member", async () => {
-    const feed = { name: "besluiten", isMember: async () => false, buildMember: jest.fn() };
+  it('adds nothing when no subject is a member', async () => {
+    const feed = {
+      name: 'besluiten',
+      isMember: async () => false,
+      buildMember: jest.fn(),
+    };
 
-    await generateFeed("unit-1", feed, new Set([STEMMING]));
+    await generateFeed('unit-1', feed, new Set([STEMMING]));
 
     expect(feed.buildMember).not.toHaveBeenCalled();
     expect(addMembers).not.toHaveBeenCalled();

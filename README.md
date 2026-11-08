@@ -28,14 +28,14 @@ start when a feed file misses one of the exports.
 ## Usage
 
 ```yml
-  harvest_gen_ldes:
-    image: lblod/harvesting-generation-ldes-service
-    environment:
-      BASE_URL: "http://localhost/ldes/"
-    volumes:
-      - ./data/files:/share
-      - ./data/ldes:/data
-      - ./config/ldes-feeds:/config/feeds # optional
+harvest_gen_ldes:
+  image: lblod/harvesting-generation-ldes-service
+  environment:
+    BASE_URL: 'http://localhost/ldes/'
+  volumes:
+    - ./data/files:/share
+    - ./data/ldes:/data
+    - ./config/ldes-feeds:/config/feeds # optional
 ```
 
 Environment variables, besides the [ldes-producer ones](https://github.com/lblod/ldes-producer#configuration):

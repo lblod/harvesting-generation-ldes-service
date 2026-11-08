@@ -2,22 +2,20 @@ module.exports = {
   root: true,
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module'
+    sourceType: 'module',
   },
-  extends: [
-    'eslint:recommended',
-  ],
+  extends: ['eslint:recommended'],
   env: {
     node: true,
-    es6: true
+    es6: true,
   },
   overrides: [
     {
       files: ['test/**/*.js'],
-      env: { jest: true }
-    }
+      env: { jest: true },
+    },
   ],
   rules: {
-    semi: 'warn'
+    semi: 'warn',
   },
 };

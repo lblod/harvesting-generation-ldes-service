@@ -1,17 +1,17 @@
-import { querySudo } from "@lblod/mu-auth-sudo";
-import { DataFactory } from "n3";
-import { mkdtempSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { loadFeeds, toFeed, context, createContext } from "../lib/feeds";
+import { querySudo } from '@lblod/mu-auth-sudo';
+import { DataFactory } from 'n3';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { loadFeeds, toFeed, context, createContext } from '../lib/feeds';
 
 const { namedNode, literal, quad } = DataFactory;
 
-const SUBJECT = "<http://ex.org/x/1>";
-const GRAPH = "<http://mu.semte.ch/graphs/public>";
-const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-const BESLUIT = "http://data.vlaanderen.be/ns/besluit#";
-const PROV = "http://www.w3.org/ns/prov#";
+const SUBJECT = '<http://ex.org/x/1>';
+const GRAPH = '<http://mu.semte.ch/graphs/public>';
+const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+const BESLUIT = 'http://data.vlaanderen.be/ns/besluit#';
+const PROV = 'http://www.w3.org/ns/prov#';
 
 // records the queries and answers the CONSTRUCTs with the given quads, in order
 function fakeContext(...answers) {
@@ -32,7 +32,7 @@ function ex(name) {
 }
 
 function on(subject, ...predicates) {
-  return predicates.map((p) => quad(subject, namedNode(p), literal("x")));
+  return predicates.map((p) => quad(subject, namedNode(p), literal('x')));
 }
 
 async function feed(name) {
@@ -41,217 +41,289 @@ async function feed(name) {
 
 function valid() {
   return {
-    shape: "http://ex.org/shape",
-    prefixes: "PREFIX ex: <http://ex.org/>",
-    getNodes: () => [{ find: (s) => `VALUES ?s { ${s} }`, required: ["ex:p"] }, { find: (s) => `${s} ex:q ?s .` }],
+    shape: 'http://ex.org/shape',
+    prefixes: 'PREFIX ex: <http://ex.org/>',
+    getNodes: () => [
+      { find: (s) => `VALUES ?s { ${s} }`, required: ['ex:p'] },
+      { find: (s) => `${s} ex:q ?s .` },
+    ],
     isMember: async () => true,
   };
 }
 
 function feedDir(files) {
-  const dir = mkdtempSync(join(tmpdir(), "feeds-"));
-  Object.entries(files).forEach(([file, content]) => writeFileSync(join(dir, file), content));
+  const dir = mkdtempSync(join(tmpdir(), 'feeds-'));
+  Object.entries(files).forEach(([file, content]) =>
+    writeFileSync(join(dir, file), content),
+  );
   return dir;
 }
 
-describe("loadFeeds", () => {
-  it("has a feed per file in config/feeds, named after the file, with its shape", async () => {
-    expect((await loadFeeds()).map(({ name, shape }) => [name, shape])).toEqual([
-      ["besluiten", "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape"],
-      ["zittingen", "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"],
-    ]);
+describe('loadFeeds', () => {
+  it('has a feed per file in config/feeds, named after the file, with its shape', async () => {
+    expect((await loadFeeds()).map(({ name, shape }) => [name, shape])).toEqual(
+      [
+        [
+          'besluiten',
+          'https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape',
+        ],
+        [
+          'zittingen',
+          'https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape',
+        ],
+      ],
+    );
   });
 
-  it("has the nodes of the feeds, the root first", async () => {
+  it('has the nodes of the feeds, the root first', async () => {
     for (const { nodes } of await loadFeeds()) {
-      expect(nodes[0].find("<x>")).toBe("VALUES ?s { <x> }");
+      expect(nodes[0].find('<x>')).toBe('VALUES ?s { <x> }');
     }
   });
 
-  it("loads a plain feed file, without imports", async () => {
+  it('loads a plain feed file, without imports', async () => {
     const dir = feedDir({
-      "plain.js": `export const shape = "http://ex.org/shape";
+      'plain.js': `export const shape = "http://ex.org/shape";
 export function getNodes() { return [{ find: (s) => s, required: ["ex:p"] }]; }
 export async function isMember() { return true; }
 `,
     });
 
     const [plain] = await loadFeeds(dir);
-    expect([plain.name, plain.shape, plain.prefixes, plain.nodes[0].optional]).toEqual(["plain", "http://ex.org/shape", "", []]);
+    expect([
+      plain.name,
+      plain.shape,
+      plain.prefixes,
+      plain.nodes[0].optional,
+    ]).toEqual(['plain', 'http://ex.org/shape', '', []]);
   });
 
-  it("throws on a feed file that misses a required export, so the service does not start", async () => {
-    const dir = feedDir({ "broken.js": "export const shape = 'http://ex.org/shape';\n" });
+  it('throws on a feed file that misses a required export, so the service does not start', async () => {
+    const dir = feedDir({
+      'broken.js': "export const shape = 'http://ex.org/shape';\n",
+    });
 
-    await expect(loadFeeds(dir)).rejects.toThrow("config/feeds/broken.js must export getNodes, isMember");
+    await expect(loadFeeds(dir)).rejects.toThrow(
+      'config/feeds/broken.js must export getNodes, isMember',
+    );
   });
 });
 
-describe("toFeed", () => {
-  it("accepts a valid feed file, with defaults for what is left out", () => {
-    expect(toFeed("x", valid()).nodes.map(({ required, optional, or }) => [required, optional, or])).toEqual([
-      [["ex:p"], [], []],
+describe('toFeed', () => {
+  it('accepts a valid feed file, with defaults for what is left out', () => {
+    expect(
+      toFeed('x', valid()).nodes.map(({ required, optional, or }) => [
+        required,
+        optional,
+        or,
+      ]),
+    ).toEqual([
+      [['ex:p'], [], []],
       [[], [], []],
     ]);
   });
 
-  it("builds the member from the nodes by default", async () => {
-    const loaded = toFeed("x", valid());
+  it('builds the member from the nodes by default', async () => {
+    const loaded = toFeed('x', valid());
     const build = jest.fn(async () => []);
 
     await loaded.buildMember(SUBJECT, { build });
-    expect(build).toHaveBeenCalledWith(SUBJECT, { prefixes: "PREFIX ex: <http://ex.org/>", nodes: loaded.nodes });
+    expect(build).toHaveBeenCalledWith(SUBJECT, {
+      prefixes: 'PREFIX ex: <http://ex.org/>',
+      nodes: loaded.nodes,
+    });
   });
 
-  it("uses the buildMember of the feed file when it has one", async () => {
-    const quads = on(ex("x/1"), "http://ex.org/p");
+  it('uses the buildMember of the feed file when it has one', async () => {
+    const quads = on(ex('x/1'), 'http://ex.org/p');
 
-    expect(await toFeed("x", { ...valid(), buildMember: async () => quads }).buildMember(SUBJECT, {})).toBe(quads);
+    expect(
+      await toFeed('x', {
+        ...valid(),
+        buildMember: async () => quads,
+      }).buildMember(SUBJECT, {}),
+    ).toBe(quads);
   });
 });
 
-describe("zittingen", () => {
-  const required = on(ex("x/1"), `${BESLUIT}isGehoudenDoor`, `${PROV}wasDerivedFrom`);
+describe('zittingen', () => {
+  const required = on(
+    ex('x/1'),
+    `${BESLUIT}isGehoudenDoor`,
+    `${PROV}wasDerivedFrom`,
+  );
 
-  it("only has zittingen as members", async () => {
+  it('only has zittingen as members', async () => {
     const { ctx, queries } = fakeContext();
 
-    expect(await (await feed("zittingen")).isMember(SUBJECT, ctx)).toBe(true);
-    expect(queries[0]).toContain(`ASK { GRAPH ${GRAPH} { ${SUBJECT} a besluit:Zitting } }`);
+    expect(await (await feed('zittingen')).isMember(SUBJECT, ctx)).toBe(true);
+    expect(queries[0]).toContain(
+      `ASK { GRAPH ${GRAPH} { ${SUBJECT} a besluit:Zitting } }`,
+    );
   });
 
-  it("reads the required, then the optional properties of all nodes, in two queries", async () => {
-    const optional = on(ex("stemming/1"), `${BESLUIT}aantalVoorstanders`);
+  it('reads the required, then the optional properties of all nodes, in two queries', async () => {
+    const optional = on(ex('stemming/1'), `${BESLUIT}aantalVoorstanders`);
     const { ctx, queries } = fakeContext(required, optional);
 
-    const quads = await (await feed("zittingen")).buildMember(SUBJECT, ctx);
+    const quads = await (await feed('zittingen')).buildMember(SUBJECT, ctx);
 
     expect(quads).toEqual([...required, ...optional]);
     expect(queries).toHaveLength(2);
     queries.forEach((q) => expect(q).toContain(`GRAPH ${GRAPH}`));
     const [req, opt] = queries;
     expect(req).toContain(`VALUES ?s { ${SUBJECT} }`);
-    expect(req).toContain("besluit:isGehoudenDoor");
-    expect(req).toContain("besluit:gevolg");
-    expect(req).not.toContain("besluit:heeftNotulen|");
+    expect(req).toContain('besluit:isGehoudenDoor');
+    expect(req).toContain('besluit:gevolg');
+    expect(req).not.toContain('besluit:heeftNotulen|');
     expect(opt).toContain(`${SUBJECT} besluit:behandelt ?s .`);
-    expect(opt).toContain("?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .");
-    expect(opt).toContain("besluit:aantalVoorstanders");
-    expect(opt).toContain("besluit:heeftNotulen|besluit:heeftBesluitenlijst");
-    expect(opt).toContain("?behandeling besluit:heeftUittreksel ?s");
+    expect(opt).toContain(
+      '?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .',
+    );
+    expect(opt).toContain('besluit:aantalVoorstanders');
+    expect(opt).toContain('besluit:heeftNotulen|besluit:heeftBesluitenlijst');
+    expect(opt).toContain('?behandeling besluit:heeftUittreksel ?s');
   });
 
-  it("only has the public agendapunten, with their behandelingen, stemmingen and uittreksels", async () => {
+  it('only has the public agendapunten, with their behandelingen, stemmingen and uittreksels', async () => {
     const { ctx, queries } = fakeContext(required);
 
-    await (await feed("zittingen")).buildMember(SUBJECT, ctx);
+    await (await feed('zittingen')).buildMember(SUBJECT, ctx);
     const [req, opt] = queries;
     const publicAgendapunt = `${SUBJECT} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
     for (const query of [req, opt]) {
-      expect(query).toContain(`${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`);
-      expect(query).toContain(`${publicAgendapunt} ?s dct:subject ?agendapunt .`);
-      expect(query).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`);
+      expect(query).toContain(
+        `${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`,
+      );
+      expect(query).toContain(
+        `${publicAgendapunt} ?s dct:subject ?agendapunt .`,
+      );
+      expect(query).toContain(
+        `${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`,
+      );
     }
-    expect(opt).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftUittreksel ?s`);
-    expect(opt).toContain(`VALUES ?s { ${SUBJECT} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`);
+    expect(opt).toContain(
+      `${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftUittreksel ?s`,
+    );
+    expect(opt).toContain(
+      `VALUES ?s { ${SUBJECT} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
+    );
     expect(opt.match(/besluit:behandelt(?! \?)/g)).toHaveLength(1);
   });
 
-  it("only reads the zitting when it has its required properties", async () => {
+  it('only reads the zitting when it has its required properties', async () => {
     const { ctx, queries } = fakeContext(required);
 
-    await (await feed("zittingen")).buildMember(SUBJECT, ctx);
-    expect(queries[0]).toContain("FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })");
-    expect(queries[0]).toContain("FILTER (EXISTS { ?s prov:wasDerivedFrom [] })");
+    await (await feed('zittingen')).buildMember(SUBJECT, ctx);
+    expect(queries[0]).toContain(
+      'FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })',
+    );
+    expect(queries[0]).toContain(
+      'FILTER (EXISTS { ?s prov:wasDerivedFrom [] })',
+    );
     expect(queries[0].match(/FILTER/g)).toHaveLength(2);
-    expect(queries[0]).not.toContain("rdf:type");
+    expect(queries[0]).not.toContain('rdf:type');
   });
 
-  it("is not built when the zitting misses a required property (nothing comes back for it)", async () => {
-    const { ctx, queries } = fakeContext(on(ex("stemming/1"), `${BESLUIT}gevolg`));
+  it('is not built when the zitting misses a required property (nothing comes back for it)', async () => {
+    const { ctx, queries } = fakeContext(
+      on(ex('stemming/1'), `${BESLUIT}gevolg`),
+    );
 
-    expect(await (await feed("zittingen")).buildMember(SUBJECT, ctx)).toBeNull();
+    expect(
+      await (await feed('zittingen')).buildMember(SUBJECT, ctx),
+    ).toBeNull();
     expect(queries).toHaveLength(1);
   });
 });
 
-describe("besluiten", () => {
-  const ELI = "http://data.europa.eu/eli/ontology#";
-  const required = on(ex("x/1"), `${RDF}type`, `${PROV}wasDerivedFrom`);
+describe('besluiten', () => {
+  const ELI = 'http://data.europa.eu/eli/ontology#';
+  const required = on(ex('x/1'), `${RDF}type`, `${PROV}wasDerivedFrom`);
 
-  it("only has besluiten as members", async () => {
+  it('only has besluiten as members', async () => {
     const { ctx, queries } = fakeContext();
 
-    await (await feed("besluiten")).isMember(SUBJECT, ctx);
+    await (await feed('besluiten')).isMember(SUBJECT, ctx);
     expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit`);
   });
 
-  it("only has the besluiten of a public agendapunt of a published zitting", async () => {
+  it('only has the besluiten of a public agendapunt of a published zitting', async () => {
     const { ctx, queries } = fakeContext();
 
-    await (await feed("besluiten")).isMember(SUBJECT, ctx);
-    expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .`);
-    expect(queries[0]).toContain("?behandeling dct:subject ?agendapunt .");
-    expect(queries[0]).toContain("?agendapunt besluit:geplandOpenbaar true .");
-    expect(queries[0]).toContain("?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .");
+    await (await feed('besluiten')).isMember(SUBJECT, ctx);
+    expect(queries[0]).toContain(
+      `${SUBJECT} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .`,
+    );
+    expect(queries[0]).toContain('?behandeling dct:subject ?agendapunt .');
+    expect(queries[0]).toContain('?agendapunt besluit:geplandOpenbaar true .');
+    expect(queries[0]).toContain(
+      '?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .',
+    );
   });
 
-  it("builds the member from the besluit and its artikels, in two queries", async () => {
+  it('builds the member from the besluit and its artikels, in two queries', async () => {
     const { ctx, queries } = fakeContext(required);
 
-    expect(await (await feed("besluiten")).buildMember(SUBJECT, ctx)).toEqual(required);
+    expect(await (await feed('besluiten')).buildMember(SUBJECT, ctx)).toEqual(
+      required,
+    );
     expect(queries).toHaveLength(2);
     const [req, opt] = queries;
     expect(req).toContain(`${SUBJECT} eli:has_part ?s .`);
-    expect(opt).toContain("prov:wasGeneratedBy");
-    expect(opt).not.toContain("besluit:heeftStemming");
-    expect(opt).toContain("eli:passed_by");
-    expect(opt).toContain("eli:date_publication");
+    expect(opt).toContain('prov:wasGeneratedBy');
+    expect(opt).not.toContain('besluit:heeftStemming');
+    expect(opt).toContain('eli:passed_by');
+    expect(opt).toContain('eli:date_publication');
   });
 
-  it("needs a title or a description (sh:or), but reads both as optional", async () => {
+  it('needs a title or a description (sh:or), but reads both as optional', async () => {
     const { ctx, queries } = fakeContext(required);
 
-    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
+    await (await feed('besluiten')).buildMember(SUBJECT, ctx);
     const [req, opt] = queries;
-    expect(req).toContain("FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })");
-    expect(req).toContain("VALUES ?p { rdf:type prov:wasDerivedFrom }");
-    expect(opt).toContain("eli:title eli:description");
-    expect(req).not.toContain("FILTER (EXISTS { ?s prov:value [] })");
+    expect(req).toContain(
+      'FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })',
+    );
+    expect(req).toContain('VALUES ?p { rdf:type prov:wasDerivedFrom }');
+    expect(opt).toContain('eli:title eli:description');
+    expect(req).not.toContain('FILTER (EXISTS { ?s prov:value [] })');
     expect(opt).toMatch(/VALUES \?p \{[^}]*prov:value/);
   });
 
-  it("is not built when the besluit misses a required property, even if an artikel has it", async () => {
-    const { ctx } = fakeContext(on(ex("artikel/1"), `${PROV}value`));
+  it('is not built when the besluit misses a required property, even if an artikel has it', async () => {
+    const { ctx } = fakeContext(on(ex('artikel/1'), `${PROV}value`));
 
-    expect(await (await feed("besluiten")).buildMember(SUBJECT, ctx)).toBeNull();
+    expect(
+      await (await feed('besluiten')).buildMember(SUBJECT, ctx),
+    ).toBeNull();
   });
 });
 
-describe("context", () => {
-  it("turns the ?s ?p ?o bindings of a CONSTRUCT into quads", async () => {
+describe('context', () => {
+  it('turns the ?s ?p ?o bindings of a CONSTRUCT into quads', async () => {
     querySudo.mockResolvedValue({
       results: {
         bindings: [
           {
-            s: { type: "uri", value: "http://ex.org/s" },
-            p: { type: "uri", value: "http://ex.org/p" },
-            o: { type: "literal", value: "o", "xml:lang": "nl" },
+            s: { type: 'uri', value: 'http://ex.org/s' },
+            p: { type: 'uri', value: 'http://ex.org/p' },
+            o: { type: 'literal', value: 'o', 'xml:lang': 'nl' },
           },
         ],
       },
     });
 
-    const [quad] = await context.construct("CONSTRUCT ...");
+    const [quad] = await context.construct('CONSTRUCT ...');
 
-    expect(quad.subject.value).toBe("http://ex.org/s");
-    expect(quad.predicate.value).toBe("http://ex.org/p");
-    expect(quad.object.language).toBe("nl");
+    expect(quad.subject.value).toBe('http://ex.org/s');
+    expect(quad.predicate.value).toBe('http://ex.org/p');
+    expect(quad.object.language).toBe('nl');
   });
 
-  it("answers an ASK with a boolean", async () => {
+  it('answers an ASK with a boolean', async () => {
     querySudo.mockResolvedValue({ head: {}, boolean: false });
 
-    expect(await context.ask("ASK ...")).toBe(false);
+    expect(await context.ask('ASK ...')).toBe(false);
   });
 });
