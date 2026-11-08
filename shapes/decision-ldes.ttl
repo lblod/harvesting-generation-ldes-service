@@ -26,7 +26,7 @@
     sh:or ( [ sh:property [ sh:path eli:title ; sh:minCount 1 ] ]
               [ sh:property [ sh:path eli:description ; sh:minCount 1 ] ] ) ;
 
-    sh:property [ sh:path prov:value ; sh:nodeKind sh:Literal ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path prov:value ; sh:nodeKind sh:Literal ; sh:maxCount 1 ] ;
     sh:property [ sh:path besluit:motivering ; sh:nodeKind sh:Literal ; sh:maxCount 1 ] ;
     sh:property [ sh:path eli:title_short ;
                   sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ; sh:maxCount 1 ] ;

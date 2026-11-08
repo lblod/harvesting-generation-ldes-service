@@ -19,7 +19,7 @@
     sh:property [ sh:path besluit:geplandeStart ; sh:datatype xsd:dateTime ; sh:maxCount 1 ] ;
     sh:property [ sh:path prov:startedAtTime ;  sh:datatype xsd:dateTime ; sh:maxCount 1 ] ;
     sh:property [ sh:path prov:endedAtTime ;    sh:datatype xsd:dateTime ; sh:maxCount 1 ] ;
-    sh:property [ sh:path prov:atLocation ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path prov:atLocation ; sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ] ;
     sh:property [ sh:path besluit:heeftAanwezigeBijStart ; sh:nodeKind sh:IRI ] ;   # mandataris URIs
     sh:property [ sh:path besluit:heeftVoorzitter ; sh:nodeKind sh:IRI ; sh:maxCount 1 ] ;
     sh:property [ sh:path besluit:heeftSecretaris ; sh:nodeKind sh:IRI ; sh:maxCount 1 ] ;

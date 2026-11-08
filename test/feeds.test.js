@@ -91,7 +91,7 @@ describe("zittingen", () => {
 
 describe("besluiten", () => {
   const ELI = "http://data.europa.eu/eli/ontology#";
-  const required = on(ex("x/1"), `${RDF}type`, `${PROV}value`, `${PROV}wasDerivedFrom`);
+  const required = on(ex("x/1"), `${RDF}type`, `${PROV}wasDerivedFrom`);
 
   it("only has besluiten as members", async () => {
     const { ctx, queries } = fakeContext();
@@ -120,9 +120,11 @@ describe("besluiten", () => {
     await (await feed("besluiten")).buildMember(SUBJECT, ctx);
     const [req, opt] = queries;
     expect(req).toContain("FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })");
-    expect(req).toContain("FILTER (EXISTS { ?s prov:value [] })");
-    expect(req).toContain("VALUES ?p { rdf:type prov:value prov:wasDerivedFrom }");
+    expect(req).toContain("VALUES ?p { rdf:type prov:wasDerivedFrom }");
     expect(opt).toContain("eli:title eli:description");
+    // prov:value (the extracted text) is optional on the besluit, required on an artikel
+    expect(req).not.toContain("FILTER (EXISTS { ?s prov:value [] })");
+    expect(opt).toMatch(/VALUES \?p \{[^}]*prov:value/);
   });
 
   it("is not built when the besluit misses a required property, even if an artikel has it", async () => {

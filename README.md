@@ -35,8 +35,10 @@ export async function buildMember(subject, { build }) { ... }          // -> arr
 
 `subject` and `graph` are escaped SPARQL IRIs (`<...>`). `ask(query)` returns a boolean, `construct(query)` the
 quads. `build(subject, { prefixes, nodes })` builds the member from the nodes of the shape (`{ find, required,
-optional }`, the root first) with one query for the required and one for the optional properties; it returns null
-when the root misses a required property. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
+optional, or }`, the root first) with one query for the required and one for the optional properties; it returns null
+when the root misses a required property (`sh:minCount 1`) or has none of the properties of an `or` group (an
+`sh:or` of `sh:minCount 1` shapes, e.g. `or: [["eli:title", "eli:description"]]`). The properties of an `or` group
+are only checked, list them in `required` or `optional` as their own `sh:minCount` says. Only the root is checked. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
 name) or add one (new file = new stream); the service is transpiled again with it when the container starts.
 
 ### Cutoff between the feeds
