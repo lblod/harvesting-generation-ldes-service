@@ -27,6 +27,19 @@ describe("generateFeed", () => {
     expect([unit, calledFeed, [...stores.keys()]]).toEqual(["unit-1", feed, [ZITTING]]);
   });
 
+  it("skips the members that cannot be built", async () => {
+    const feed = {
+      name: "zittingen",
+      isMember: async () => true,
+      buildMember: jest.fn(async () => null),
+    };
+
+    await generateFeed("unit-1", feed, new Set([ZITTING]));
+
+    expect(feed.buildMember).toHaveBeenCalledTimes(1);
+    expect(addMembers).not.toHaveBeenCalled();
+  });
+
   it("adds nothing when no subject is a member", async () => {
     const feed = { name: "besluiten", isMember: async () => false, buildMember: jest.fn() };
 

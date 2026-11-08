@@ -30,26 +30,19 @@ A feed is a `.js` file in `config/feeds`, named after the stream (`config/feeds/
 ```js
 export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape"; // tree:shape of the stream
 export async function isMember(subject, { ask, graph }) { ... }        // -> boolean
-export async function buildMember(subject, { construct, graph }) { ... } // -> array of quads
+export async function buildMember(subject, { build }) { ... }          // -> array of quads, or null
 ```
 
 `subject` and `graph` are escaped SPARQL IRIs (`<...>`). `ask(query)` returns a boolean, `construct(query)` the
-quads. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
+quads. `build(subject, { prefixes, nodes })` builds the member from the nodes of the shape (`{ find, required,
+optional }`, the root first) with one query for the required and one for the optional properties; it returns null
+when the root misses a required property. As in other mu-javascript-template services, mount a folder on `/config/feeds` to override a feed (same file
 name) or add one (new file = new stream); the service is transpiled again with it when the container starts.
 
 ### Cutoff between the feeds
 
 Behandelingen and stemmingen live in the zittingen feed. A besluit only links to its behandeling with
 `prov:wasGeneratedBy`; consumers that want a decision with its votes join the two feeds on the behandeling IRI.
-
-### Derived data (besluiten)
-
-Derived in the queries of `config/feeds/besluiten.js`:
-
-- `eli:passed_by`: when missing, the `besluit:isGehoudenDoor` of the zitting (the bestuursorgaan in tijd). When it is
-  the bestuursorgaan the zitting's organ is a `mandaat:isTijdspecialisatieVan`, it is replaced by the organ in tijd.
-- `eli:date_publication`: when missing, the earliest `dct:date` of the notulen / besluitenlijst of the zitting.
-- `eli:language`: `NLD` when missing (also on the artikels).
 
 ### Things to know
 

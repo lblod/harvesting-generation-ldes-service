@@ -1,22 +1,32 @@
 import { querySudo } from "@lblod/mu-auth-sudo";
-import { loadFeeds, context } from "../lib/feeds";
+import { DataFactory } from "n3";
+import { loadFeeds, context, createContext } from "../lib/feeds";
+const { namedNode, literal, quad } = DataFactory;
 
 const SUBJECT = "<http://ex.org/x/1>";
 const GRAPH = "<http://mu.semte.ch/graphs/public>";
 
-// collects the queries a feed sends, answering every CONSTRUCT with one quad
-function fakeContext() {
+// collects the queries a feed sends, answering the CONSTRUCTs with the given quads in order
+function fakeContext(...answers) {
   const queries = [];
-  const ctx = {
+  const ctx = createContext({
     graph: GRAPH,
     ask: jest.fn(async (q) => queries.push(q) && true),
     construct: jest.fn(async (q) => {
       queries.push(q);
-      return [`quad ${queries.length}`];
+      return answers.shift() || [];
     }),
-  };
+  });
   return { ctx, queries };
 }
+
+const ex = (name) => namedNode(`http://ex.org/${name}`);
+const on = (subject, ...predicates) =>
+  predicates.map((p) => quad(subject, namedNode(p), literal("x")));
+
+const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const BESLUIT = "http://data.vlaanderen.be/ns/besluit#";
+const PROV = "http://www.w3.org/ns/prov#";
 
 const feed = async (name) => (await loadFeeds()).find((f) => f.name === name);
 
@@ -30,6 +40,8 @@ describe("loadFeeds", () => {
 });
 
 describe("zittingen", () => {
+  const required = on(ex("x/1"), `${RDF}type`, `${BESLUIT}isGehoudenDoor`, `${PROV}wasDerivedFrom`);
+
   it("only has zittingen as members", async () => {
     const { ctx, queries } = fakeContext();
 
@@ -37,26 +49,38 @@ describe("zittingen", () => {
     expect(queries[0]).toContain(`ASK { GRAPH ${GRAPH} { ${SUBJECT} a besluit:Zitting } }`);
   });
 
-  it("builds the member from the zitting, agendapunten, behandelingen, stemmingen and documents", async () => {
-    const { ctx, queries } = fakeContext();
+  it("reads the required, then the optional properties of all nodes, in two queries", async () => {
+    const optional = on(ex("stemming/1"), `${BESLUIT}aantalVoorstanders`);
+    const { ctx, queries } = fakeContext(required, optional);
 
     const quads = await (await feed("zittingen")).buildMember(SUBJECT, ctx);
 
-    expect(quads).toEqual(queries.map((_, i) => `quad ${i + 1}`));
-    expect(queries).toHaveLength(5);
+    expect(quads).toEqual([...required, ...optional]);
+    expect(queries).toHaveLength(2);
     queries.forEach((q) => expect(q).toContain(`GRAPH ${GRAPH}`));
-    expect(queries[0]).toContain(`VALUES ?s { ${SUBJECT} }`);
-    expect(queries[0]).toContain("besluit:isGehoudenDoor");
-    expect(queries[1]).toContain(`${SUBJECT} besluit:behandelt ?s .`);
-    expect(queries[2]).toContain(`${SUBJECT} besluit:behandelt ?agendapunt . ?s dct:subject ?agendapunt .`);
-    expect(queries[3]).toContain("?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .");
-    expect(queries[3]).toContain("besluit:aantalVoorstanders");
-    expect(queries[4]).toContain("besluit:heeftNotulen|besluit:heeftBesluitenlijst");
-    expect(queries[4]).toContain("?behandeling besluit:heeftUittreksel ?s");
+    const [req, opt] = queries;
+    expect(req).toContain(`VALUES ?s { ${SUBJECT} }`);
+    expect(req).toContain("besluit:isGehoudenDoor");
+    expect(req).toContain("besluit:gevolg");
+    expect(req).not.toContain("besluit:heeftNotulen|"); // documents have no required properties
+    expect(opt).toContain(`${SUBJECT} besluit:behandelt ?s .`);
+    expect(opt).toContain("?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .");
+    expect(opt).toContain("besluit:aantalVoorstanders");
+    expect(opt).toContain("besluit:heeftNotulen|besluit:heeftBesluitenlijst");
+    expect(opt).toContain("?behandeling besluit:heeftUittreksel ?s");
+  });
+
+  it("is not built when the zitting misses a required property", async () => {
+    const { ctx, queries } = fakeContext(required.slice(1));
+
+    expect(await (await feed("zittingen")).buildMember(SUBJECT, ctx)).toBeNull();
+    expect(queries).toHaveLength(1);
   });
 });
 
 describe("besluiten", () => {
+  const required = on(ex("x/1"), `${RDF}type`, `${PROV}value`, `${PROV}wasDerivedFrom`);
+
   it("only has besluiten as members", async () => {
     const { ctx, queries } = fakeContext();
 
@@ -64,31 +88,25 @@ describe("besluiten", () => {
     expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit`);
   });
 
-  it("builds the member from the besluit and its artikels, with the derived data", async () => {
-    const { ctx, queries } = fakeContext();
+  it("builds the member from the besluit and its artikels, in two queries", async () => {
+    const { ctx, queries } = fakeContext(required);
 
-    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
-
-    expect(queries).toHaveLength(6);
+    expect(await (await feed("besluiten")).buildMember(SUBJECT, ctx)).toEqual(required);
+    expect(queries).toHaveLength(2);
+    const [req, opt] = queries;
+    expect(req).toContain(`${SUBJECT} eli:has_part ?s .`);
     // the behandeling is only linked, it lives in the zittingen feed
-    expect(queries[0]).toContain("prov:wasGeneratedBy");
-    expect(queries[0]).not.toContain("besluit:heeftStemming");
-    expect(queries[1]).toContain(`${SUBJECT} eli:has_part ?s .`);
-    expect(queries[2]).toContain(`CONSTRUCT { ${SUBJECT} eli:passed_by ?passedBy }`);
-    expect(queries[2]).toContain("mandaat:isTijdspecialisatieVan");
-    expect(queries[3]).toContain(`CONSTRUCT { ${SUBJECT} eli:date_publication ?date }`);
-    expect(queries[3]).toContain("MIN(");
-    expect(queries[4]).toContain(`CONSTRUCT { ${SUBJECT} eli:language <http://publications.europa.eu/resource/authority/language/NLD> }`);
-    expect(queries[5]).toContain(`${SUBJECT} eli:has_part ?artikel .`);
+    expect(opt).toContain("prov:wasGeneratedBy");
+    expect(opt).not.toContain("besluit:heeftStemming");
+    expect(opt).toContain("eli:passed_by");
+    expect(opt).toContain("eli:date_publication");
   });
 
-  it("does not read the derived passed_by and date_publication as is", async () => {
-    const { ctx, queries } = fakeContext();
+  it("is not built when the besluit misses a required property, even if an artikel has it", async () => {
+    const artikel = on(ex("artikel/1"), `${PROV}value`);
+    const { ctx } = fakeContext([...required.slice(0, 2), ...artikel]);
 
-    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
-
-    const [values] = queries[0].match(/VALUES \?p \{[^}]*\}/);
-    expect(values).not.toMatch(/eli:passed_by|eli:date_publication/);
+    expect(await (await feed("besluiten")).buildMember(SUBJECT, ctx)).toBeNull();
   });
 });
 
