@@ -3,7 +3,13 @@ import { DataFactory } from 'n3';
 import { mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { loadFeeds, toFeed, context, findByValue } from '../lib/feeds';
+import {
+  loadFeeds,
+  toFeed,
+  findMembers,
+  context,
+  findByValue,
+} from '../lib/feeds';
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -163,9 +169,11 @@ describe('zittingen', () => {
   it('finds the zittingen among the subjects, in one query', async () => {
     const { ctx, queries } = fakeContext(uris('http://ex.org/x/1'));
 
-    const members = await (
-      await feed('zittingen')
-    ).findMembers(['http://ex.org/x/1', 'http://ex.org/x/2'], ctx);
+    const members = await findMembers(
+      ['http://ex.org/x/1', 'http://ex.org/x/2'],
+      await feed('zittingen'),
+      ctx,
+    );
 
     expect(members).toEqual(['http://ex.org/x/1']);
     expect(queries).toHaveLength(1);
@@ -179,7 +187,7 @@ describe('zittingen', () => {
   it('does not query when there are no subjects', async () => {
     const { ctx, queries } = fakeContext();
 
-    expect(await (await feed('zittingen')).findMembers([], ctx)).toEqual([]);
+    expect(await findMembers([], await feed('zittingen'), ctx)).toEqual([]);
     expect(queries).toHaveLength(0);
   });
 
@@ -265,7 +273,7 @@ describe('besluiten', () => {
   it('only has the besluiten of a public agendapunt of a published zitting', async () => {
     const { ctx, queries } = fakeContext();
 
-    await (await feed('besluiten')).findMembers(['http://ex.org/x/1'], ctx);
+    await findMembers(['http://ex.org/x/1'], await feed('besluiten'), ctx);
     expect(queries[0]).toContain('VALUES ?s { <http://ex.org/x/1> }');
     expect(queries[0]).toContain(
       '?s a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .',
