@@ -254,16 +254,17 @@ describe('zittingen', () => {
     // stemming
     expect(query).toContain('FILTER (EXISTS { ?s besluit:gevolg [] })');
     expect(query.match(/FILTER/g)).toHaveLength(12);
-    // the zitting itself, for every branch (also the links to its agendapunten)
-    const memberFilter = `FILTER (EXISTS { ${SUBJECT} besluit:isGehoudenDoor [] })`;
-    expect(query.indexOf(memberFilter)).toBeGreaterThan(
-      query.lastIndexOf('UNION'),
+    // the links to the agendapunten are about the zitting too
+    expect(query).toContain(
+      'besluit:geplandOpenbaar true .\n      FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })',
     );
     expect(query.match(/VALUES \?p \{[^}]*\}/)[0]).not.toContain('rdf:type');
   });
 
-  it('is not built when the zitting misses a required property (nothing comes back)', async () => {
-    const { ctx, queries } = fakeContext([]);
+  it('is not built when the zitting misses a required property (nothing comes back for it)', async () => {
+    const { ctx, queries } = fakeContext(
+      on(ex('stemming/1'), `${BESLUIT}gevolg`),
+    );
 
     expect(
       await (await feed('zittingen')).buildMember(SUBJECT, ctx),
@@ -311,8 +312,7 @@ describe('besluiten', () => {
 
     await (await feed('besluiten')).buildMember(SUBJECT, ctx);
     const [query] = queries;
-    expect(query.match(/FILTER/g)).toHaveLength(6);
-    expect(query).toContain(`FILTER (EXISTS { ${SUBJECT} rdf:type [] })`);
+    expect(query.match(/FILTER/g)).toHaveLength(4);
     expect(query).toContain('FILTER (EXISTS { ?s rdf:type [] })');
     expect(query).toContain('FILTER (EXISTS { ?s prov:value [] })');
     expect(query).toContain(
@@ -321,8 +321,8 @@ describe('besluiten', () => {
     expect(query).toMatch(/VALUES \?p \{[^}]*prov:value/);
   });
 
-  it('is not built when the besluit misses a required property (nothing comes back)', async () => {
-    const { ctx } = fakeContext([]);
+  it('is not built when the besluit misses a required property, even if an artikel has it', async () => {
+    const { ctx } = fakeContext(on(ex('artikel/1'), `${PROV}value`));
 
     expect(
       await (await feed('besluiten')).buildMember(SUBJECT, ctx),

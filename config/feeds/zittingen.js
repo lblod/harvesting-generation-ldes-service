@@ -97,6 +97,7 @@ const NODES = [
   {
     // the zitting's links to its public agendapunten only
     find: findAgendapuntLinks,
+    required: ['besluit:isGehoudenDoor', 'prov:wasDerivedFrom'],
     optional: ['besluit:behandelt'],
   },
 ];
