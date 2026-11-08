@@ -30,7 +30,8 @@ const NODES = [
   {
     // zitting (root of the member)
     find: (s) => `VALUES ?s { ${s} }`,
-    required: ["rdf:type", "besluit:isGehoudenDoor", "prov:wasDerivedFrom"],
+    // no rdf:type: the (closed) zitting shape has none, isMember already checks it
+    required: ["besluit:isGehoudenDoor", "prov:wasDerivedFrom"],
     optional: [
       "besluit:geplandeStart",
       "prov:startedAtTime",
@@ -51,7 +52,6 @@ const NODES = [
     find: (s) => `${s} besluit:behandelt ?s .`,
     required: ["dct:title", "prov:wasDerivedFrom"],
     optional: [
-      "rdf:type",
       "dct:description",
       "besluit:geplandOpenbaar",
       // full IRI: Virtuoso does not accept a dot in a prefixed name
@@ -82,7 +82,6 @@ const NODES = [
     find: (s) => `${behandelingen(s)} ?behandeling besluit:heeftStemming ?s .`,
     required: ["besluit:onderwerp", "besluit:gevolg", "prov:wasDerivedFrom"],
     optional: [
-      "rdf:type",
       "besluit:geheim",
       "besluit:aantalVoorstanders",
       "besluit:aantalTegenstanders",

@@ -20,16 +20,21 @@ PREFIX sro: <https://data.vlaanderen.be/ns/slimmeraadpleegomgeving#>
 `;
 
 // The nodes of the shape (the shapes are closed): how to find a node ?s from
-// the besluit, and its required (sh:minCount 1) and optional properties.
+// the besluit, its required (sh:minCount 1) and optional properties, and its
+// sh:or constraints: each array in `or` needs at least one of its properties.
 const NODES = [
   {
     // besluit (root of the member)
     find: (s) => `VALUES ?s { ${s} }`,
-    required: ["rdf:type", "prov:value", "prov:wasDerivedFrom"],
+    required: ["rdf:type",  "prov:wasDerivedFrom"],
+    // eli:title and eli:description are optional (sh:maxCount 1), but the
+    // shape's sh:or needs at least one of them
+    or: [["eli:title", "eli:description"]],
     optional: [
       "eli:title",
       "eli:description",
       "besluit:motivering",
+      "prov:value",
       "eli:title_short",
       "eli:date_publication",
       "eli:first_date_entry_in_force",

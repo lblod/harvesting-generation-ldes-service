@@ -40,7 +40,7 @@ describe("loadFeeds", () => {
 });
 
 describe("zittingen", () => {
-  const required = on(ex("x/1"), `${RDF}type`, `${BESLUIT}isGehoudenDoor`, `${PROV}wasDerivedFrom`);
+  const required = on(ex("x/1"), `${BESLUIT}isGehoudenDoor`, `${PROV}wasDerivedFrom`);
 
   it("only has zittingen as members", async () => {
     const { ctx, queries } = fakeContext();
@@ -70,8 +70,19 @@ describe("zittingen", () => {
     expect(opt).toContain("?behandeling besluit:heeftUittreksel ?s");
   });
 
-  it("is not built when the zitting misses a required property", async () => {
-    const { ctx, queries } = fakeContext(required.slice(1));
+  it("only reads the zitting when it has its required properties", async () => {
+    const { ctx, queries } = fakeContext(required);
+
+    await (await feed("zittingen")).buildMember(SUBJECT, ctx);
+    expect(queries[0]).toContain("FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })");
+    expect(queries[0]).toContain("FILTER (EXISTS { ?s prov:wasDerivedFrom [] })");
+    // nested nodes are not filtered on their required properties
+    expect(queries[0].match(/FILTER/g)).toHaveLength(2);
+    expect(queries[0]).not.toContain("rdf:type"); // not in the zitting, agendapunt or stemming shapes
+  });
+
+  it("is not built when the zitting misses a required property (nothing comes back for it)", async () => {
+    const { ctx, queries } = fakeContext(on(ex("stemming/1"), `${BESLUIT}gevolg`));
 
     expect(await (await feed("zittingen")).buildMember(SUBJECT, ctx)).toBeNull();
     expect(queries).toHaveLength(1);
@@ -79,6 +90,7 @@ describe("zittingen", () => {
 });
 
 describe("besluiten", () => {
+  const ELI = "http://data.europa.eu/eli/ontology#";
   const required = on(ex("x/1"), `${RDF}type`, `${PROV}value`, `${PROV}wasDerivedFrom`);
 
   it("only has besluiten as members", async () => {
@@ -102,9 +114,19 @@ describe("besluiten", () => {
     expect(opt).toContain("eli:date_publication");
   });
 
+  it("needs a title or a description (sh:or), but reads both as optional", async () => {
+    const { ctx, queries } = fakeContext(required);
+
+    await (await feed("besluiten")).buildMember(SUBJECT, ctx);
+    const [req, opt] = queries;
+    expect(req).toContain("FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })");
+    expect(req).toContain("FILTER (EXISTS { ?s prov:value [] })");
+    expect(req).toContain("VALUES ?p { rdf:type prov:value prov:wasDerivedFrom }");
+    expect(opt).toContain("eli:title eli:description");
+  });
+
   it("is not built when the besluit misses a required property, even if an artikel has it", async () => {
-    const artikel = on(ex("artikel/1"), `${PROV}value`);
-    const { ctx } = fakeContext([...required.slice(0, 2), ...artikel]);
+    const { ctx } = fakeContext(on(ex("artikel/1"), `${PROV}value`));
 
     expect(await (await feed("besluiten")).buildMember(SUBJECT, ctx)).toBeNull();
   });
