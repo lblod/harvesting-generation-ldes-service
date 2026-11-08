@@ -1,13 +1,6 @@
-// Feed of the besluiten (decisions): one member per besluit:Besluit, with its artikels.
-//
-// A besluit links to its behandeling with prov:wasGeneratedBy, the behandelingen
-// and stemmingen live in the zittingen feed. Only the besluiten of a public
-// agendapunt of a published zitting are in this feed, so that link always
-// points to something in the zittingen feed.
-//
-// This folder can be mounted (/config/feeds), so no imports here: the service
-// passes everything a feed needs in the context. A feed file must export
-// `shape`, `getNodes()` and `isMember()`, or the service does not start.
+// One member per besluit, with its artikels. Only the besluiten of a public
+// agendapunt of a published zitting, so they always link to a behandeling in the zittingen feed.
+// No imports: this folder can be mounted.
 
 export const shape = "https://data.lblod.info/shacl/ldes-besluit#BesluitMemberShape";
 
@@ -21,14 +14,13 @@ PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 PREFIX sro: <https://data.vlaanderen.be/ns/slimmeraadpleegomgeving#>
 `;
 
-// The nodes of the shape (shapes/decision-ldes.ttl), the besluit first.
+// The nodes of shapes/decision-ldes.ttl, the besluit first.
 const NODES = [
   {
-    // besluit (root of the member)
+    // besluit
     find: (s) => `VALUES ?s { ${s} }`,
-    required: ["rdf:type",  "prov:wasDerivedFrom"],
-    // eli:title and eli:description are optional (sh:maxCount 1), but the
-    // shape's sh:or needs at least one of them
+    required: ["rdf:type", "prov:wasDerivedFrom"],
+    // sh:or in the shape
     or: [["eli:title", "eli:description"]],
     optional: [
       "eli:title",

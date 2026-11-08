@@ -13,7 +13,7 @@ const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 const BESLUIT = "http://data.vlaanderen.be/ns/besluit#";
 const PROV = "http://www.w3.org/ns/prov#";
 
-// collects the queries a feed sends, answering the CONSTRUCTs with the given quads in order
+// records the queries and answers the CONSTRUCTs with the given quads, in order
 function fakeContext(...answers) {
   const queries = [];
   const ctx = createContext({
@@ -39,7 +39,6 @@ async function feed(name) {
   return (await loadFeeds()).find((f) => f.name === name);
 }
 
-// a valid feed file, to break in the tests
 function valid() {
   return {
     shape: "http://ex.org/shape",
@@ -49,7 +48,6 @@ function valid() {
   };
 }
 
-// a folder with the given feed files
 function feedDir(files) {
   const dir = mkdtempSync(join(tmpdir(), "feeds-"));
   Object.entries(files).forEach(([file, content]) => writeFileSync(join(dir, file), content));
@@ -135,7 +133,7 @@ describe("zittingen", () => {
     expect(req).toContain(`VALUES ?s { ${SUBJECT} }`);
     expect(req).toContain("besluit:isGehoudenDoor");
     expect(req).toContain("besluit:gevolg");
-    expect(req).not.toContain("besluit:heeftNotulen|"); // documents have no required properties
+    expect(req).not.toContain("besluit:heeftNotulen|");
     expect(opt).toContain(`${SUBJECT} besluit:behandelt ?s .`);
     expect(opt).toContain("?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .");
     expect(opt).toContain("besluit:aantalVoorstanders");
@@ -150,12 +148,11 @@ describe("zittingen", () => {
     const [req, opt] = queries;
     const publicAgendapunt = `${SUBJECT} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
     for (const query of [req, opt]) {
-      expect(query).toContain(`${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`); // agendapunt
-      expect(query).toContain(`${publicAgendapunt} ?s dct:subject ?agendapunt .`); // behandeling
+      expect(query).toContain(`${SUBJECT} besluit:behandelt ?s . ?s besluit:geplandOpenbaar true .`);
+      expect(query).toContain(`${publicAgendapunt} ?s dct:subject ?agendapunt .`);
       expect(query).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftStemming ?s .`);
     }
     expect(opt).toContain(`${publicAgendapunt} ?behandeling dct:subject ?agendapunt . ?behandeling besluit:heeftUittreksel ?s`);
-    // the zitting only links to its public agendapunten, read once by the last node
     expect(opt).toContain(`VALUES ?s { ${SUBJECT} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`);
     expect(opt.match(/besluit:behandelt(?! \?)/g)).toHaveLength(1);
   });
@@ -166,9 +163,8 @@ describe("zittingen", () => {
     await (await feed("zittingen")).buildMember(SUBJECT, ctx);
     expect(queries[0]).toContain("FILTER (EXISTS { ?s besluit:isGehoudenDoor [] })");
     expect(queries[0]).toContain("FILTER (EXISTS { ?s prov:wasDerivedFrom [] })");
-    // nested nodes are not filtered on their required properties
     expect(queries[0].match(/FILTER/g)).toHaveLength(2);
-    expect(queries[0]).not.toContain("rdf:type"); // not in the zitting, agendapunt or stemming shapes
+    expect(queries[0]).not.toContain("rdf:type");
   });
 
   it("is not built when the zitting misses a required property (nothing comes back for it)", async () => {
@@ -197,7 +193,6 @@ describe("besluiten", () => {
     expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .`);
     expect(queries[0]).toContain("?behandeling dct:subject ?agendapunt .");
     expect(queries[0]).toContain("?agendapunt besluit:geplandOpenbaar true .");
-    // the required properties of the zitting, so its behandeling is in the zittingen feed
     expect(queries[0]).toContain("?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .");
   });
 
@@ -208,7 +203,6 @@ describe("besluiten", () => {
     expect(queries).toHaveLength(2);
     const [req, opt] = queries;
     expect(req).toContain(`${SUBJECT} eli:has_part ?s .`);
-    // the behandeling is only linked, it lives in the zittingen feed
     expect(opt).toContain("prov:wasGeneratedBy");
     expect(opt).not.toContain("besluit:heeftStemming");
     expect(opt).toContain("eli:passed_by");
@@ -223,7 +217,6 @@ describe("besluiten", () => {
     expect(req).toContain("FILTER (EXISTS { ?s eli:title [] } || EXISTS { ?s eli:description [] })");
     expect(req).toContain("VALUES ?p { rdf:type prov:wasDerivedFrom }");
     expect(opt).toContain("eli:title eli:description");
-    // prov:value (the extracted text) is optional on the besluit, required on an artikel
     expect(req).not.toContain("FILTER (EXISTS { ?s prov:value [] })");
     expect(opt).toMatch(/VALUES \?p \{[^}]*prov:value/);
   });

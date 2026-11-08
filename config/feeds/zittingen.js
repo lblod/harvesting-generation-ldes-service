@@ -1,12 +1,5 @@
-// Feed of the zittingen (meetings): one member per besluit:Zitting, with its
-// agendapunten, behandelingen, stemmingen and documents.
-//
-// Only the public agendapunten (besluit:geplandOpenbaar true) are in a member.
-// A zitting without public agendapunten is still published, without agendapunten.
-//
-// This folder can be mounted (/config/feeds), so no imports here: the service
-// passes everything a feed needs in the context. A feed file must export
-// `shape`, `getNodes()` and `isMember()`, or the service does not start.
+// One member per zitting, with its public agendapunten and their behandelingen,
+// stemmingen and documents. No imports: this folder can be mounted.
 
 export const shape = "https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape";
 
@@ -21,14 +14,12 @@ PREFIX dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>
 PREFIX adms: <http://www.w3.org/ns/adms#>
 `;
 
-// The nodes of the shape (shapes/meeting-ldes.ttl), the zitting first.
-// `find` uses plain triple patterns, Virtuoso returns nothing for an inverse
-// path combined with VALUES ?p.
+// The nodes of shapes/meeting-ldes.ttl, the zitting first. No property paths
+// in `find`: Virtuoso returns nothing for an inverse path with VALUES ?p.
 const NODES = [
   {
-    // zitting (root of the member)
+    // zitting
     find: (s) => `VALUES ?s { ${s} }`,
-    // no rdf:type: the (closed) zitting shape has none, isMember already checks it
     required: ["besluit:isGehoudenDoor", "prov:wasDerivedFrom"],
     optional: [
       "besluit:geplandeStart",
@@ -38,7 +29,6 @@ const NODES = [
       "besluit:heeftAanwezigeBijStart",
       "besluit:heeftVoorzitter",
       "besluit:heeftSecretaris",
-      // besluit:behandelt is read by the last node, only to the public agendapunten
       "besluit:heeftNotulen",
       "besluit:heeftBesluitenlijst",
       "besluit:heeftZittingsverslag",
@@ -52,7 +42,7 @@ const NODES = [
     optional: [
       "dct:description",
       "besluit:geplandOpenbaar",
-      // full IRI: Virtuoso does not accept a dot in a prefixed name
+      // Virtuoso doesn't accept a dot in a prefixed name
       "<http://data.vlaanderen.be/ns/besluit#Agendapunt.type>",
       "besluit:aangebrachtNa",
       "besluit:heeftOntwerpbesluit",
@@ -62,7 +52,7 @@ const NODES = [
   },
   {
     // behandeling
-    find: (s) => `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?s dct:subject ?agendapunt .`,
+    find: (s) => `${publicAgendapunten(s)} ?s dct:subject ?agendapunt .`,
     required: ["dct:subject", "besluit:openbaar", "prov:wasDerivedFrom"],
     optional: [
       "rdf:type",
@@ -93,7 +83,7 @@ const NODES = [
     ],
   },
   {
-    // notulen, besluitenlijst, zittingsverslag, uittreksels
+    // documents
     find: (s) => `{ ${s} besluit:heeftNotulen|besluit:heeftBesluitenlijst|besluit:heeftZittingsverslag ?s }
       UNION { ${behandelingen(s)} ?behandeling besluit:heeftUittreksel ?s }`,
     optional: [
@@ -109,8 +99,7 @@ const NODES = [
     ],
   },
   {
-    // besluit:behandelt of the zitting (the root again), only to its public
-    // agendapunten: find binds ?o, so `?s ?p ?o` only returns those links
+    // the zitting's links to its public agendapunten only
     find: (s) => `VALUES ?s { ${s} } ?s besluit:behandelt ?o . ?o besluit:geplandOpenbaar true .`,
     optional: ["besluit:behandelt"],
   },
@@ -125,7 +114,10 @@ export async function isMember(subject, { ask, graph }) {
 ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
 }
 
-// The behandelingen of the public agendapunten of the zitting.
-function behandelingen(s) {
-  return `${s} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true . ?behandeling dct:subject ?agendapunt .`;
+function publicAgendapunten(zitting) {
+  return `${zitting} besluit:behandelt ?agendapunt . ?agendapunt besluit:geplandOpenbaar true .`;
+}
+
+function behandelingen(zitting) {
+  return `${publicAgendapunten(zitting)} ?behandeling dct:subject ?agendapunt .`;
 }

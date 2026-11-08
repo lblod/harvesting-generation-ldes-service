@@ -9,10 +9,9 @@ import { failBusyTasks } from './lib/task';
 import { loadFeeds } from './lib/feeds';
 import { STATUS_SCHEDULED } from './constants';
 
-// Load the feeds (config/feeds, can be mounted) first: when one is not valid
-// this throws and the service does not start.
+// throws when a feed file is not valid, so the service doesn't start
 const feeds = await loadFeeds();
-console.log(`Loaded the feeds: ${feeds.map(({ name }) => name).join(', ')}`);
+console.log(`Loaded feeds: ${feeds.map(({ name }) => name).join(', ')}`);
 
 failBusyTasks();
 
