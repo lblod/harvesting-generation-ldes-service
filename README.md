@@ -18,9 +18,9 @@ imports and exports:
 
 - `shape`: the `tree:shape` of the feed
 - `prefixes` (optional): the prefixes of its queries
+- `memberPattern`: the triple patterns a member `?s` matches, e.g. `?s a besluit:Zitting .`
 - `getNodes()`: the resources in a member, the member itself first. Each is
   `{ find, required, optional, or }`: how to find it from the member, and its properties
-- `isMember(subject, { ask, graph })`: whether the subject is a member
 
 A member is skipped when it misses a `required` property, or all the properties of an `or`. The service doesn't
 start when a feed file misses one of the exports.

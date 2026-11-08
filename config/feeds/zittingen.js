@@ -15,6 +15,9 @@ PREFIX dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>
 PREFIX adms: <http://www.w3.org/ns/adms#>
 `;
 
+// A member (?s): a zitting.
+export const memberPattern = '?s a besluit:Zitting .';
+
 // The nodes of shapes/meeting-ldes.ttl, the zitting first. No property paths
 // in `find`: Virtuoso returns nothing for an inverse path with VALUES ?p.
 const NODES = [
@@ -112,11 +115,6 @@ const NODES = [
 
 export function getNodes() {
   return NODES;
-}
-
-export async function isMember(subject, { ask, graph }) {
-  return ask(`${prefixes}
-ASK { GRAPH ${graph} { ${subject} a besluit:Zitting } }`);
 }
 
 function publicAgendapunten(zitting) {

@@ -13,12 +13,15 @@ const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const BESLUIT = 'http://data.vlaanderen.be/ns/besluit#';
 const PROV = 'http://www.w3.org/ns/prov#';
 
-// records the queries and answers the CONSTRUCTs with the given quads, in order
+// records the queries and answers them with the given results, in order
 function fakeContext(...answers) {
   const queries = [];
   const ctx = {
     graph: GRAPH,
-    ask: jest.fn(async (q) => queries.push(q) && true),
+    select: jest.fn(async (q) => {
+      queries.push(q);
+      return answers.shift() || [];
+    }),
     construct: jest.fn(async (q) => {
       queries.push(q);
       return answers.shift() || [];
@@ -47,8 +50,12 @@ function valid() {
       { find: (s) => `VALUES ?s { ${s} }`, required: ['ex:p'] },
       { find: (s) => `${s} ex:q ?s .` },
     ],
-    isMember: async () => true,
+    memberPattern: '?s a ex:Thing .',
   };
+}
+
+function uris(...values) {
+  return values.map((value) => ({ s: { type: 'uri', value } }));
 }
 
 function feedDir(files) {
@@ -85,7 +92,7 @@ describe('loadFeeds', () => {
     const dir = feedDir({
       'plain.js': `export const shape = "http://ex.org/shape";
 export function getNodes() { return [{ find: (s) => s, required: ["ex:p"] }]; }
-export async function isMember() { return true; }
+export const memberPattern = "?s a ex:Thing .";
 `,
     });
 
@@ -104,7 +111,7 @@ export async function isMember() { return true; }
     });
 
     await expect(loadFeeds(dir)).rejects.toThrow(
-      'config/feeds/broken.js must export getNodes, isMember',
+      'config/feeds/broken.js must export memberPattern, getNodes',
     );
   });
 });
@@ -150,13 +157,27 @@ describe('zittingen', () => {
     `${PROV}wasDerivedFrom`,
   );
 
-  it('only has zittingen as members', async () => {
+  it('finds the zittingen among the subjects, in one query', async () => {
+    const { ctx, queries } = fakeContext(uris('http://ex.org/x/1'));
+
+    const members = await (
+      await feed('zittingen')
+    ).findMembers(['http://ex.org/x/1', 'http://ex.org/x/2'], ctx);
+
+    expect(members).toEqual(['http://ex.org/x/1']);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toContain(`GRAPH ${GRAPH}`);
+    expect(queries[0]).toContain(
+      'VALUES ?s { <http://ex.org/x/1> <http://ex.org/x/2> }',
+    );
+    expect(queries[0]).toContain('?s a besluit:Zitting .');
+  });
+
+  it('does not query when there are no subjects', async () => {
     const { ctx, queries } = fakeContext();
 
-    expect(await (await feed('zittingen')).isMember(SUBJECT, ctx)).toBe(true);
-    expect(queries[0]).toContain(
-      `ASK { GRAPH ${GRAPH} { ${SUBJECT} a besluit:Zitting } }`,
-    );
+    expect(await (await feed('zittingen')).findMembers([], ctx)).toEqual([]);
+    expect(queries).toHaveLength(0);
   });
 
   it('reads the required, then the optional properties of all nodes, in two queries', async () => {
@@ -238,19 +259,13 @@ describe('besluiten', () => {
   const ELI = 'http://data.europa.eu/eli/ontology#';
   const required = on(ex('x/1'), `${RDF}type`, `${PROV}wasDerivedFrom`);
 
-  it('only has besluiten as members', async () => {
-    const { ctx, queries } = fakeContext();
-
-    await (await feed('besluiten')).isMember(SUBJECT, ctx);
-    expect(queries[0]).toContain(`${SUBJECT} a besluit:Besluit`);
-  });
-
   it('only has the besluiten of a public agendapunt of a published zitting', async () => {
     const { ctx, queries } = fakeContext();
 
-    await (await feed('besluiten')).isMember(SUBJECT, ctx);
+    await (await feed('besluiten')).findMembers(['http://ex.org/x/1'], ctx);
+    expect(queries[0]).toContain('VALUES ?s { <http://ex.org/x/1> }');
     expect(queries[0]).toContain(
-      `${SUBJECT} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .`,
+      '?s a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .',
     );
     expect(queries[0]).toContain('?behandeling dct:subject ?agendapunt .');
     expect(queries[0]).toContain('?agendapunt besluit:geplandOpenbaar true .');
@@ -318,9 +333,10 @@ describe('context', () => {
     expect(quad.object.language).toBe('nl');
   });
 
-  it('answers an ASK with a boolean', async () => {
-    querySudo.mockResolvedValue({ head: {}, boolean: false });
+  it('answers a SELECT with its bindings', async () => {
+    const bindings = uris('http://ex.org/s');
+    querySudo.mockResolvedValue({ results: { bindings } });
 
-    expect(await context.ask('ASK ...')).toBe(false);
+    expect(await context.select('SELECT ...')).toEqual(bindings);
   });
 });

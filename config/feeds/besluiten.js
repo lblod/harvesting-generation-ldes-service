@@ -15,6 +15,14 @@ PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
 PREFIX sro: <https://data.vlaanderen.be/ns/slimmeraadpleegomgeving#>
 `;
 
+// A member (?s): a besluit of a public agendapunt of a published zitting.
+export const memberPattern = `
+  ?s a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .
+  ?behandeling dct:subject ?agendapunt .
+  ?agendapunt besluit:geplandOpenbaar true .
+  ?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .
+`;
+
 // The nodes of shapes/decision-ldes.ttl, the besluit first.
 const NODES = [
   {
@@ -60,14 +68,4 @@ const NODES = [
 
 export function getNodes() {
   return NODES;
-}
-
-export async function isMember(subject, { ask, graph }) {
-  return ask(`${prefixes}
-ASK { GRAPH ${graph} {
-  ${subject} a besluit:Besluit ; prov:wasGeneratedBy ?behandeling .
-  ?behandeling dct:subject ?agendapunt .
-  ?agendapunt besluit:geplandOpenbaar true .
-  ?zitting besluit:behandelt ?agendapunt ; besluit:isGehoudenDoor [] ; prov:wasDerivedFrom [] .
-} }`);
 }
