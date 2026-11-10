@@ -40,7 +40,6 @@ const NODES = [
     optional: [
       'dct:description',
       'besluit:geplandOpenbaar',
-      // Virtuoso doesn't accept a dot in a prefixed name
       '<http://data.vlaanderen.be/ns/besluit#Agendapunt.type>',
       'besluit:aangebrachtNa',
       'besluit:heeftOntwerpbesluit',
