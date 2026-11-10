@@ -1,0 +1,21 @@
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix eli: <http://data.europa.eu/eli/ontology#> .
+@prefix tree: <https://w3id.org/tree#> .
+@prefix ldes: <http://w3id.org/ldes#> .
+@prefix as: <https://www.w3.org/ns/activitystreams#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix v: <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/> .
+
+<http://example.org/ldes/0005/zittingen> a ldes:EventStream, tree:Collection ;
+  tree:view <http://example.org/ldes/0005/zittingen/1> ;
+  tree:shape <https://data.lblod.info/shacl/ldes-zitting#ZittingMemberShape> ;
+  ldes:timestampPath prov:generatedAtTime ;
+  ldes:versionOfPath dct:isVersionOf ;
+  tree:member v:1 .
+<http://example.org/ldes/0005/zittingen/1> a tree:Node .
+v:1 a as:Tombstone ;
+  as:formerType besluit:Zitting ;
+  dct:isVersionOf <http://ex.org/zitting/2> ;
+  prov:generatedAtTime "2026-01-01T00:00:00.000Z"^^xsd:dateTime .
