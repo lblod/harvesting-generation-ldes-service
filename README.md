@@ -51,3 +51,5 @@ Pages are served on `GET /:unit/:feed/:page`.
 ## Tests
 
 `npm test`
+
+A test is a file with the same name in `test/examples/new-insert` (the harvested data, loaded in an in-memory triplestore) and/or `test/examples/to-remove`, and the expected pages of all feeds in `test/examples/output`. Add it to `CASES` in `test/feeds.test.js`.
