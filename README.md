@@ -45,8 +45,8 @@ Environment variables, besides the [ldes-producer ones](https://github.com/lblod
 - `DEFAULT_GRAPH` (`http://mu.semte.ch/graphs/harvesting`): the jobs and their files
 - `SOURCE_GRAPH` (`http://mu.semte.ch/graphs/public`): the published data
 - `BATCH_SIZE` (`10`)
-
-Pages are served on `GET /:unit/:feed/:page`.
+- `FEEDS_CONFIG_DIR` (`/usr/src/dist/config/feeds`): where the feed files are read from. Leave it as is and mount
+  them on `/config/feeds`, the template copies them there
 
 ## Tests
 

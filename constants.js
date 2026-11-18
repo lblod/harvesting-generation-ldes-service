@@ -44,7 +44,7 @@ export const DEFAULT_GRAPH =
   process.env.DEFAULT_GRAPH || 'http://mu.semte.ch/graphs/harvesting';
 export const SOURCE_GRAPH =
   process.env.SOURCE_GRAPH || 'http://mu.semte.ch/graphs/public';
-// the service runs from the transpiled sources, config/ included
-export const FEEDS_DIR = `${process.cwd()}/config/feeds`;
+export const FEEDS_CONFIG_DIR =
+  process.env.FEEDS_CONFIG_DIR || `${process.cwd()}/config/feeds`;
 
 export const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '10');

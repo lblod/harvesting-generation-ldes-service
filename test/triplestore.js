@@ -15,7 +15,9 @@ export function load(ttl) {
 }
 
 export async function querySudo(query) {
-  const bindings = store.query(query).map((result) => toBindings(toRow(result)));
+  const bindings = store
+    .query(query)
+    .map((result) => toBindings(toRow(result)));
   return { results: { bindings } };
 }
 
@@ -36,7 +38,8 @@ function toBindings(row) {
 
 function toBinding(term) {
   if (term.termType === 'NamedNode') return { type: 'uri', value: term.value };
-  if (term.termType === 'BlankNode') return { type: 'bnode', value: term.value };
+  if (term.termType === 'BlankNode')
+    return { type: 'bnode', value: term.value };
   if (term.language) {
     return { type: 'literal', value: term.value, 'xml:lang': term.language };
   }

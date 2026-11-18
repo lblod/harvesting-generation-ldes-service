@@ -4,14 +4,19 @@ import { join } from 'path';
 
 process.env.BASE_URL = 'http://example.org/ldes/';
 process.env.DATA_FOLDER = mkdtempSync(join(tmpdir(), 'ldes-'));
+process.env.FEEDS_CONFIG_DIR = join(process.cwd(), 'config/feeds');
 
 // no mu-javascript-template in the tests, and an in-memory triplestore
-jest.mock('mu', () => ({ sparqlEscapeUri: (uri) => `<${uri}>` }), {
-  virtual: true,
-});
+jest.mock(
+  'mu',
+  () => ({
+    sparqlEscapeUri: (uri) => `<${uri}>`,
+    sparqlEscapeString: (value) => JSON.stringify(value),
+  }),
+  { virtual: true },
+);
 jest.mock('@lblod/mu-auth-sudo', () => require('./triplestore'));
 
-// the versions are versioned/1, versioned/2, ... in each test, made at a fixed time
 let mockUuid = 0;
 jest.mock('uuid', () => ({ v4: () => `${++mockUuid}` }));
 beforeEach(() => {

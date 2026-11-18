@@ -13,7 +13,7 @@ import { STATUS_SCHEDULED } from './constants';
 const feeds = await loadFeeds();
 console.log(`Loaded feeds: ${feeds.map(({ name }) => name).join(', ')}`);
 
-failBusyTasks();
+await failBusyTasks();
 
 app.use(
   bodyParser.json({
@@ -53,35 +53,5 @@ app.post('/delta', async function (req, res, next) {
   }
 });
 
-// The LDES pages: /:unit/:feed/:nodeId, with the unit being the uuid of the administrative unit.
-app.get('/:unit/:feed/:nodeId?', async function (req, res, next) {
-  const { unit, feed, nodeId } = req.params;
-  if (
-    !/^[\w-]+$/.test(unit) ||
-    !/^[\w-]+$/.test(feed) ||
-    (nodeId && !/^\d+$/.test(nodeId))
-  ) {
-    return res.status(404).send();
-  }
-  if (!nodeId) {
-    return res.redirect(`${config.baseUrl}${unit}/${feed}/1`);
-  }
-  try {
-    const contentType = req.accepts(ACCEPTED_CONTENT_TYPES) || '';
-    const result = await getNode(config, {
-      folder: `${unit}/${feed}`,
-      contentType,
-      nodeId: parseInt(nodeId),
-    });
-    if (result.fromCache) {
-      res.header('Cache-Control', 'public, immutable');
-    }
-    res.header('Content-Type', contentType);
-    return result.stream.pipe(res);
-  } catch (e) {
-    if (/does not exist/.test(e.message)) return res.status(404).send();
-    return next(e);
-  }
-});
 
 app.use(errorHandler);
