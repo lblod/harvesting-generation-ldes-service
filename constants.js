@@ -31,6 +31,8 @@ export const PREFIXES = `
 // files produced by the diff step, used to find out what changed in this job
 export const INSERTED_FILE_NAME = 'new-insert-triples.ttl';
 export const REMOVED_FILE_NAME = 'to-remove-triples.ttl';
+
+// https://github.com/lblod/harvesting-diff-service
 export const DIFF_FILE_NAMES = [INSERTED_FILE_NAME, REMOVED_FILE_NAME];
 
 export const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
