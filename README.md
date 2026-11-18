@@ -11,6 +11,19 @@ Each administrative unit gets two feeds:
 Only public agendapunten are published. The members follow the shapes in `shapes/`, which the feeds point to with
 `tree:shape`.
 
+## How it works
+
+The service depends on the [harvesting-diff-service](https://github.com/lblod/harvesting-diff-service), which runs
+earlier in the harvester pipeline. When a `gen-ldes` task is scheduled:
+
+1. It takes the diff files of the job, written by the diff service: `new-insert-triples.ttl` and
+   `to-remove-triples.ttl` (or their `.gz`).
+2. It takes the subjects in those files and builds the members from the triplestore (`SOURCE_GRAPH`), following the
+   feed file (`memberPattern` and `getNodes()`).
+3. It writes these members to the feed with ldes-producer, which versions each member and its nested resources.
+4. It uses `to-remove-triples.ttl` to add tombstones: a subject that loses the `rdfType` of a feed gets one in that
+   feed. Only the members get tombstones, not their nested resources. 
+
 ## Feeds
 
 A feed is a file in `config/feeds`. Mount your own folder on `/config/feeds` to change or add one. A feed file has no
