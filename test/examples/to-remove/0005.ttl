@@ -1,0 +1,4 @@
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#> .
+
+<http://ex.org/zitting/2> a besluit:Zitting ;
+  besluit:isGehoudenDoor <http://ex.org/orgaan-in-tijd/1> .
