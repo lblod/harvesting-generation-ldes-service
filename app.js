@@ -53,5 +53,4 @@ app.post('/delta', async function (req, res, next) {
   }
 });
 
-
 app.use(errorHandler);

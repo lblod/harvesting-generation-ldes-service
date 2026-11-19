@@ -22,7 +22,7 @@ earlier in the harvester pipeline. When a `gen-ldes` task is scheduled:
    feed file (`memberPattern` and `getNodes()`).
 3. It writes these members to the feed with ldes-producer, which versions each member and its nested resources.
 4. It uses `to-remove-triples.ttl` to add tombstones: a subject that loses the `rdfType` of a feed gets one in that
-   feed. Only the members get tombstones, not their nested resources. 
+   feed. Only the members get tombstones, not their nested resources. As a client you must now EITHER clean up the unlinked nested resources OR accept that such unlinked resources with information that is no longer correct exist in your triplestore.
 
 ## Feeds
 
